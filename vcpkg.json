@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "name": "mcp-add-on",
+  "name": "skse-menu-add-on",
   "version-string": "1.0.0.0",
   "dependencies": [
     "rapidjson",
@@ -14,7 +14,8 @@
     "directxtk",
     "boost-stl-interfaces",
     "clib-util",
-    "skse-mcp"
+    "skse-mcp",
+    "clib-utils-qtr"
   ],
   "overrides": [
     {

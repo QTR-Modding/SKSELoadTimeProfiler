@@ -14,8 +14,8 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 # If you use CMake features from higher versions, update this to match.
 cmake_minimum_required(VERSION 3.21)
 # Set your project name. This will be the name of your SKSE .dll file.
-set(AUTHOR_NAME "AUTHORNAME")
-set(PRODUCT_NAME "MCP_ADD-ON")
+set(AUTHOR_NAME "Quantumyilmaz")
+set(PRODUCT_NAME "SKSE-MENU-ADD-ON")
 project(${PRODUCT_NAME} VERSION 1.0.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -49,7 +49,7 @@ get_target_property(COMMONLIB_SRC_DIR CommonLibSSE SOURCE_DIR)
 
 find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
 find_path(SKSE_MCP_INCLUDE_DIRS "SKSEMCP/utils.hpp")
-
+find_path(ClibUtilsQTR_INCLUDE_DIRS "ClibUtilsQTR/utils.hpp")
 
 #YAML-CPP
 FetchContent_Declare(
@@ -85,6 +85,7 @@ add_commonlibsse_plugin(
   AUTHOR AUTHOR_NAME
   SOURCES ${headers} ${sources}
 )
+
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23) # <--- use C++23 standard
 target_precompile_headers(${PROJECT_NAME} PRIVATE include/PCH.h) # <--- PCH.h is required!
 target_include_directories(
@@ -92,6 +93,7 @@ target_include_directories(
 	PRIVATE
 	${CLIB_UTIL_INCLUDE_DIRS}
     ${SKSE_MCP_INCLUDE_DIRS}
+    ${ClibUtilsQTR_INCLUDE_DIRS}
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
