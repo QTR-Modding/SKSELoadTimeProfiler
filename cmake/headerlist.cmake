@@ -6,5 +6,9 @@ set(headers ${headers}
 	include/Events.h
 	include/Hooks.h
 	include/MCP.h
+	include/MessagingProfilerUI.h
+	include/ReferenceUI.h
+	include/Logger.h
+	include/ExtraDataStrings.h
 	include/Serialization.h
 )

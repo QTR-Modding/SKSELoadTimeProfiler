@@ -1,4 +1,3 @@
-
 if(NOT DEFINED ENV{COMMONLIB_SSE_FOLDER})
   message(FATAL_ERROR "Missing COMMONLIB_SSE_FOLDER environment variable")
 endif()
@@ -15,7 +14,7 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 cmake_minimum_required(VERSION 3.21)
 # Set your project name. This will be the name of your SKSE .dll file.
 set(AUTHOR_NAME "Quantumyilmaz")
-set(PRODUCT_NAME "SKSE-MENU-ADD-ON")
+set(PRODUCT_NAME "00_SKSEMenuFrameworkUtilities")
 project(${PRODUCT_NAME} VERSION 1.0.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -96,6 +95,12 @@ target_include_directories(
     ${ClibUtilsQTR_INCLUDE_DIRS}
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+# After existing target_include_directories call, ensure ImGui headers are available
+# Add ImGui subfolder from SKSE MCP if present
+if (EXISTS "${SKSE_MCP_INCLUDE_DIRS}/imgui/imgui.h")
+    target_include_directories(${PROJECT_NAME} PRIVATE "${SKSE_MCP_INCLUDE_DIRS}/imgui")
+endif()
 
 target_link_libraries(${PROJECT_NAME} PUBLIC yaml-cpp::yaml-cpp)
 target_compile_definitions(${PROJECT_NAME} PRIVATE IS_HOST_PLUGIN)

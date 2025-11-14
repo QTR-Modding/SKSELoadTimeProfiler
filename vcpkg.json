@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "name": "skse-menu-add-on",
+  "name": "skse-menu-framework-utilities",
   "version-string": "1.0.0.0",
   "dependencies": [
     "rapidjson",

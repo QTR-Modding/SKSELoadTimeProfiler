@@ -30,4 +30,5 @@ namespace Utilities {
 
 	std::vector<std::string> ReadLogFile();
 
+    std::optional<std::uint32_t> hex_to_u32(std::string_view s);
 };

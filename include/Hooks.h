@@ -1,5 +1,4 @@
 #pragma once
-#include "Settings.h"
 
 namespace Hooks {
 

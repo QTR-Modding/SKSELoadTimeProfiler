@@ -6,5 +6,7 @@ set(sources ${sources}
 	src/Manager.cpp
 	src/Hooks.cpp
 	src/MCP.cpp
+	src/MessagingProfilerUI.cpp
+	src/ReferenceUI.cpp
  	src/Serialization.cpp
 )

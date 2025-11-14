@@ -28,3 +28,23 @@ std::vector<std::string> Utilities::ReadLogFile() {
 
     return logLines;
 }
+
+std::optional<std::uint32_t> Utilities::hex_to_u32(std::string_view s) {
+    auto is_space = [](unsigned char c){ return std::isspace(c); };
+    while (!s.empty() && is_space(s.front())) s.remove_prefix(1);
+    while (!s.empty() && is_space(s.back()))  s.remove_suffix(1);
+
+    if (s.size() >= 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
+        s.remove_prefix(2);
+
+    if (s.empty() || s.size() > 8) return std::nullopt; // >32 bits
+
+    std::uint32_t value{};
+    const char* first = s.data();
+    const char* last  = s.data() + s.size();
+
+    auto [ptr, ec] = std::from_chars(first, last, value, 16);
+
+    if (ec != std::errc{} || ptr != last) return std::nullopt; // parse error or trailing junk
+    return value;
+}
