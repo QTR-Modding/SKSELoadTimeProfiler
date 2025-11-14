@@ -11,4 +11,5 @@ set(headers ${headers}
 	include/Logger.h
 	include/ExtraDataStrings.h
 	include/Serialization.h
+	include/MessagingProfiler.h
 )

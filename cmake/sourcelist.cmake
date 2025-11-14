@@ -8,5 +8,6 @@ set(sources ${sources}
 	src/MCP.cpp
 	src/MessagingProfilerUI.cpp
 	src/ReferenceUI.cpp
+	src/MessagingProfiler.cpp
  	src/Serialization.cpp
 )

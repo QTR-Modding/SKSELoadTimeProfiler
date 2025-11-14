@@ -2,11 +2,7 @@
 #include <SKSEMCP/SKSEMenuFramework.hpp>
 #include <Settings.h>
 #include <Utils.h>
-#include "SKSE/Interfaces.h"
 #include "MessagingProfilerUI.h"
-#include "ReferenceUI.h" // newly added
-
-#undef GetObject
 
 TripletID::operator std::string_view() const noexcept { return unified_output; }
 TripletID::operator std::string() const { return unified_output; }
