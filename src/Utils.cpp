@@ -30,7 +30,7 @@ std::vector<std::string> Utilities::ReadLogFile() {
 }
 
 std::optional<std::uint32_t> Utilities::hex_to_u32(std::string_view s) {
-    auto is_space = [](unsigned char c){ return std::isspace(c); };
+    auto is_space = [](const unsigned char c){ return std::isspace(c); };
     while (!s.empty() && is_space(s.front())) s.remove_prefix(1);
     while (!s.empty() && is_space(s.back()))  s.remove_suffix(1);
 

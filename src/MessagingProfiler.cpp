@@ -86,7 +86,7 @@ namespace MessagingProfiler {
         return reinterpret_cast<RawCallback>(code);
     }
 
-    RawCallback AllocateWrapper(RawCallback original, std::string_view sender, void* callSiteRet)
+    RawCallback AllocateWrapper(const RawCallback original, const std::string_view sender, void* callSiteRet)
     {
         const auto idx = g_nextIndex.fetch_add(1, std::memory_order_relaxed);
         if (idx >= MAX_WRAPPERS) { logger::warn("[Profiler] Trampoline capacity exceeded (idx={} >= {}); skipping instrumentation", idx, MAX_WRAPPERS); return original; }
@@ -97,7 +97,7 @@ namespace MessagingProfiler {
         return tramp;
     }
 
-    bool Hook_RegisterListener(SKSE::PluginHandle handle, const char* sender, void* callback)
+    bool Hook_RegisterListener(const SKSE::PluginHandle handle, const char* sender, void* callback)
     {
         if (!callback) return g_origRegister(handle, sender, callback);
         if (!sender || std::strcmp(sender, "SKSE") != 0) return g_origRegister(handle, sender, callback);
@@ -107,7 +107,7 @@ namespace MessagingProfiler {
         return g_origRegister(handle, sender, reinterpret_cast<void*>(wrapped));
     }
 
-    bool Hook_Dispatch(SKSE::PluginHandle handle, std::uint32_t type, void* data, std::uint32_t len, const char* receiver)
+    bool Hook_Dispatch(SKSE::PluginHandle handle, std::uint32_t type, void* data, const std::uint32_t len, const char* receiver)
     {
         const auto start = std::chrono::high_resolution_clock::now();
         const auto r = g_origDispatch(handle, type, data, len, receiver);
@@ -143,7 +143,7 @@ namespace MessagingProfiler {
         }
     }
 
-    const char* MessageTypeName(std::uint32_t t)
+    const char* MessageTypeName(const std::uint32_t t)
     {
         using MI = SKSE::MessagingInterface;
         switch (t) {

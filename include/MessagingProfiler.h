@@ -3,14 +3,18 @@
 namespace MessagingProfiler {
     using RawRegisterFn = bool(*)(SKSE::PluginHandle, const char*, void*);
     using RawDispatchFn = bool(*)(SKSE::PluginHandle, std::uint32_t, void*, std::uint32_t, const char*);
-    using RawCallback   = void(*)(SKSE::MessagingInterface::Message*);
+    using RawCallback = void(*)(SKSE::MessagingInterface::Message*);
 
-    struct MsgStat { std::atomic<uint64_t> count{0}; std::atomic<uint64_t> totalNs{0}; std::atomic<uint64_t> maxNs{0}; };
+    struct MsgStat {
+        std::atomic<uint64_t> count{0};
+        std::atomic<uint64_t> totalNs{0};
+        std::atomic<uint64_t> maxNs{0};
+    };
 
     struct CallbackEntry {
-        RawCallback           original{};
-        std::string           sender;
-        std::string           pluginName;
+        RawCallback original{};
+        std::string sender;
+        std::string pluginName;
         std::atomic<uint64_t> count{0};
         std::atomic<uint64_t> totalNs{0};
         std::atomic<uint64_t> maxNs{0};

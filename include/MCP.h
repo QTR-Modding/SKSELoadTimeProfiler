@@ -6,8 +6,12 @@ static void HelpMarker(const char* desc);
 
 namespace MCP::UI {
     inline void ReadOnlyField(const char* label, const std::string& value, const char* id) {
-        if (label && *label) { ImGui::TextUnformatted(label); ImGui::SameLine(); }
-        std::string buffer = value; ImGui::InputText(id, buffer.data(), buffer.size()+1, ImGuiInputTextFlags_ReadOnly);
+        if (label && *label) {
+            ImGui::TextUnformatted(label);
+            ImGui::SameLine();
+        }
+        std::string buffer = value;
+        ImGui::InputText(id, buffer.data(), buffer.size() + 1, ImGuiInputTextFlags_ReadOnly);
     }
 }
 
@@ -16,8 +20,13 @@ struct TripletID {
     explicit operator std::string() const;
     explicit TripletID(const RE::TESForm* a_form = nullptr);
     void to_imgui() const;
+
 private:
-    std::string name; RE::FormID formID; std::string editorID; std::string formtype; std::string unified_output;
+    std::string name;
+    RE::FormID formID;
+    std::string editorID;
+    std::string formtype;
+    std::string unified_output;
 };
 
 namespace MCP {
@@ -30,5 +39,7 @@ namespace MCP {
     void __stdcall RenderLog();
     void __stdcall RenderProfiler();
 
-    namespace Reference { void __stdcall Render(); }
+    namespace Reference {
+        void __stdcall Render();
+    }
 }

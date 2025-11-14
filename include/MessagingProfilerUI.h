@@ -18,7 +18,7 @@ namespace MessagingProfilerUI {
     void EnsureSelectionSize(State& s, std::size_t count);
     void Render(State& s, double warnMs, double critMs);
 
-	// Persistence helpers
+    // Persistence helpers
     void SetInitialVisibility(const std::vector<bool>& vis);
     std::vector<bool> GetCurrentVisibility();
 }
