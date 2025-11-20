@@ -104,49 +104,19 @@ int64_t Hooks::TESLoad::thunk(int64_t a1, RE::TESFile* file, char a2) {
 // --- CloseTESHook multiple thunks -------------------------------------------------
 void Hooks::CloseTESHook::Install() {
     auto& trampoline = SKSE::GetTrampoline();
-
-    SKSE::AllocTrampoline(14); originalFunction1 = trampoline.write_call<5>(REL::RelocationID(13939, 14040).address() + REL::Relocate(0x2a1, 0x2b6), thunk1);
-    SKSE::AllocTrampoline(14); originalFunction2 = trampoline.write_call<5>(REL::RelocationID(13651, 13759).address() + REL::Relocate(0x2f, 0x2f), thunk2);
-    SKSE::AllocTrampoline(14); originalFunction3 = trampoline.write_call<5>(REL::RelocationID(13853, 13928).address() + REL::Relocate(0x9f, 0xa2), thunk3);
-    SKSE::AllocTrampoline(14); originalFunction4 = trampoline.write_call<5>(REL::RelocationID(13652, 13760).address() + REL::Relocate(0x2a0, 0x371), thunk4);
-    SKSE::AllocTrampoline(14); originalFunction5 = trampoline.write_call<5>(REL::RelocationID(13638, 13743).address() + REL::Relocate(0x102, 0x101), thunk5);
     SKSE::AllocTrampoline(14); originalFunction6 = trampoline.write_call<5>(REL::RelocationID(13638, 13743).address() + REL::Relocate(0x430, 0x110), thunk6);
     SKSE::AllocTrampoline(14); originalFunction7 = trampoline.write_call<5>(REL::RelocationID(13639, 13744).address() + REL::Relocate(0x1ac, 0x1b0), thunk7);
-    SKSE::AllocTrampoline(14); originalFunction8 = trampoline.write_call<5>(REL::RelocationID(13749, 13861).address() + REL::Relocate(0x111, 0x114), thunk8);
 }
 
-bool Hooks::CloseTESHook::thunk1(RE::TESFile* file, bool a_force) { logger::info("Close thunk1 {}", file?file->GetFilename():"<null>"); return originalFunction1(file, a_force); }
-bool Hooks::CloseTESHook::thunk2(RE::TESFile* file, bool a_force) { logger::info("Close thunk2 {}", file?file->GetFilename():"<null>"); return originalFunction2(file, a_force); }
-bool Hooks::CloseTESHook::thunk3(RE::TESFile* file, bool a_force) { logger::info("Close thunk3 {}", file?file->GetFilename():"<null>"); return originalFunction3(file, a_force); }
-bool Hooks::CloseTESHook::thunk4(RE::TESFile* file, bool a_force) { logger::info("Close thunk4 {}", file?file->GetFilename():"<null>"); return originalFunction4(file, a_force); }
-bool Hooks::CloseTESHook::thunk5(RE::TESFile* file, bool a_force) { logger::info("Close thunk5 {}", file?file->GetFilename():"<null>"); return originalFunction5(file, a_force); }
 bool Hooks::CloseTESHook::thunk6(RE::TESFile* file, bool a_force) { logger::info("Close thunk6 {}", file?file->GetFilename():"<null>"); return originalFunction6(file, a_force); }
 bool Hooks::CloseTESHook::thunk7(RE::TESFile* file, bool a_force) { logger::info("Close thunk7 {}", file?file->GetFilename():"<null>"); return originalFunction7(file, a_force); }
-bool Hooks::CloseTESHook::thunk8(RE::TESFile* file, bool a_force) { logger::info("Close thunk8 {}", file?file->GetFilename():"<null>"); return originalFunction8(file, a_force); }
 
 // --- OpenTESHook multiple thunks --------------------------------------------------
 void Hooks::OpenTESHook::Install() {
     auto& trampoline = SKSE::GetTrampoline();
-
     SKSE::AllocTrampoline(14); originalFunction1  = trampoline.write_call<5>(REL::RelocationID(13645, 13753).address() + REL::Relocate(0x24b, 0x23b), thunk1);
     SKSE::AllocTrampoline(14); originalFunction2  = trampoline.write_call<5>(REL::RelocationID(13645, 13753).address() + REL::Relocate(0x2ab, 0x28b), thunk2);
-    SKSE::AllocTrampoline(14); originalFunction3  = trampoline.write_call<5>(REL::RelocationID(13652, 13760).address() + REL::Relocate(0x3c, 0x3c), thunk3);
-    SKSE::AllocTrampoline(14); originalFunction4  = trampoline.write_call<5>(REL::RelocationID(13672, 13785).address() + REL::Relocate(0x45e, 0x3f0), thunk4);
-    SKSE::AllocTrampoline(14); originalFunction5  = trampoline.write_call<5>(REL::RelocationID(13672, 13785).address() + REL::Relocate(0x60c, 0x5bc), thunk5);
-    SKSE::AllocTrampoline(14); originalFunction6  = trampoline.write_call<5>(REL::RelocationID(13672, 13785).address() + REL::Relocate(0x802, 0x7a4), thunk6);
-    SKSE::AllocTrampoline(14); originalFunction7  = trampoline.write_call<5>(REL::RelocationID(22500, 22975).address() + REL::Relocate(0x3c, 0x3e), thunk7);
-    SKSE::AllocTrampoline(14); originalFunction8  = trampoline.write_call<5>(REL::RelocationID(22501, 22976).address() + REL::Relocate(0x3c, 0x3e), thunk8);
-    SKSE::AllocTrampoline(14); originalFunction9  = trampoline.write_call<5>(REL::RelocationID(24266, 24780).address() + REL::Relocate(0x26, 0x26), thunk9);
-    SKSE::AllocTrampoline(14); originalFunction10 = trampoline.write_call<5>(REL::RelocationID(24998, 25519).address() + REL::Relocate(0x93, 0x93), thunk10);
 }
 
 bool Hooks::OpenTESHook::thunk1 (RE::TESFile* file, RE::NiFile::OpenMode m, bool l) { logger::info("Open thunk1 {}",  file?file->GetFilename():"<null>"); return originalFunction1(file,m,l); }
 bool Hooks::OpenTESHook::thunk2 (RE::TESFile* file, RE::NiFile::OpenMode m, bool l) { logger::info("Open thunk2 {}",  file?file->GetFilename():"<null>"); return originalFunction2(file,m,l); }
-bool Hooks::OpenTESHook::thunk3 (RE::TESFile* file, RE::NiFile::OpenMode m, bool l) { logger::info("Open thunk3 {}",  file?file->GetFilename():"<null>"); return originalFunction3(file,m,l); }
-bool Hooks::OpenTESHook::thunk4 (RE::TESFile* file, RE::NiFile::OpenMode m, bool l) { logger::info("Open thunk4 {}",  file?file->GetFilename():"<null>"); return originalFunction4(file,m,l); }
-bool Hooks::OpenTESHook::thunk5 (RE::TESFile* file, RE::NiFile::OpenMode m, bool l) { logger::info("Open thunk5 {}",  file?file->GetFilename():"<null>"); return originalFunction5(file,m,l); }
-bool Hooks::OpenTESHook::thunk6 (RE::TESFile* file, RE::NiFile::OpenMode m, bool l) { logger::info("Open thunk6 {}",  file?file->GetFilename():"<null>"); return originalFunction6(file,m,l); }
-bool Hooks::OpenTESHook::thunk7 (RE::TESFile* file, RE::NiFile::OpenMode m, bool l) { logger::info("Open thunk7 {}",  file?file->GetFilename():"<null>"); return originalFunction7(file,m,l); }
-bool Hooks::OpenTESHook::thunk8 (RE::TESFile* file, RE::NiFile::OpenMode m, bool l) { logger::info("Open thunk8 {}",  file?file->GetFilename():"<null>"); return originalFunction8(file,m,l); }
-bool Hooks::OpenTESHook::thunk9 (RE::TESFile* file, RE::NiFile::OpenMode m, bool l) { logger::info("Open thunk9 {}",  file?file->GetFilename():"<null>"); return originalFunction9(file,m,l); }
-bool Hooks::OpenTESHook::thunk10(RE::TESFile* file, RE::NiFile::OpenMode m, bool l) { logger::info("Open thunk10 {}", file?file->GetFilename():"<null>"); return originalFunction10(file,m,l); }
