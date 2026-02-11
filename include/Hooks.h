@@ -1,13 +1,25 @@
 #pragma once
 
 namespace ESPProfiling {
+    struct Entry {
+        std::string name;
+        uint64_t totalNs{0};
+        uint64_t maxNs{0};
+        uint64_t count{0};
+    };
+
+    inline std::mutex g_mutex;
+    inline std::unordered_map<std::string, Entry> g_entries;
+
     std::vector<std::pair<std::string, uint64_t>> SnapshotTotals();
+
+    void Record(std::string_view espName, uint64_t ns);
 }
 
 namespace Hooks {
-	void Install();
+    void Install();
 
-	class TESLoad {
+    class TESLoad {
     public:
         static void Install();
 
@@ -19,6 +31,7 @@ namespace Hooks {
     class OpenTESHook {
     public:
         static void Install();
+
     private:
         static bool thunk1(RE::TESFile* file, RE::NiFile::OpenMode a_accessMode, bool a_lock);
         static bool thunk2(RE::TESFile* file, RE::NiFile::OpenMode a_accessMode, bool a_lock);
@@ -29,6 +42,7 @@ namespace Hooks {
     class CloseTESHook {
     public:
         static void Install();
+
     private:
         static bool thunk6(RE::TESFile* file, bool a_force);
         static bool thunk7(RE::TESFile* file, bool a_force);

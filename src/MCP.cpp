@@ -2,30 +2,7 @@
 #include <Settings.h>
 #include <Utils.h>
 #include "MessagingProfilerUI.h"
-#include "ReferenceUI.h"
-#include "ClibUtil/editorID.hpp"
 
-TripletID::operator std::string_view() const noexcept { return unified_output; }
-TripletID::operator std::string() const { return unified_output; }
-
-TripletID::TripletID(const RE::TESForm* a_form) {
-    if (!a_form) {
-        unified_output = "None";
-        return;
-    }
-    name = a_form->GetName();
-    formID = a_form->GetFormID();
-    editorID = clib_util::editorID::get_editorID(a_form);
-    formtype = RE::FormTypeToString(a_form->GetFormType());
-    unified_output = std::format("Name: {} | FormID: {:x} | EditorID: {} | FormType: {}", name, formID, editorID,
-                                 formtype);
-}
-
-void TripletID::to_imgui() const {
-    ImGuiMCP::ImGui::PushID(this);
-    MCP::UI::ReadOnlyField(nullptr, unified_output, "##triplet");
-    ImGuiMCP::ImGui::PopID();
-}
 
 void MCP::Register() {
     if (!SKSEMenuFramework::IsInstalled()) {
@@ -33,7 +10,6 @@ void MCP::Register() {
         return;
     }
     SKSEMenuFramework::SetSection("Utilities");
-    SKSEMenuFramework::AddSectionItem("Reference", Reference::Render);
     SKSEMenuFramework::AddSectionItem("Log", RenderLog);
     SKSEMenuFramework::AddSectionItem("Messaging Profiler", RenderProfiler);
 }
@@ -92,9 +68,17 @@ void __stdcall MCP::RenderProfiler() {
     ImGuiMCP::ImGui::Separator();
     ImGuiMCP::ImGui::TextUnformatted("Source Filters:");
     ImGuiMCP::ImGui::SameLine();
-    bool dll = MCP::showDllEntries; if (ImGuiMCP::ImGui::Checkbox("DLL", &dll)) { MCP::showDllEntries = dll; LogSettings::Save(); }
+    bool dll = showDllEntries;
+    if (ImGuiMCP::ImGui::Checkbox("DLL", &dll)) {
+        showDllEntries = dll;
+        LogSettings::Save();
+    }
     ImGuiMCP::ImGui::SameLine();
-    bool esp = MCP::showEspEntries; if (ImGuiMCP::ImGui::Checkbox("ESP", &esp)) { MCP::showEspEntries = esp; LogSettings::Save(); }
+    bool esp = showEspEntries;
+    if (ImGuiMCP::ImGui::Checkbox("ESP", &esp)) {
+        showEspEntries = esp;
+        LogSettings::Save();
+    }
 
     MessagingProfilerUI::Render(state, profilerWarnMs, profilerCritMs);
     ImGuiMCP::ImGui::Separator();

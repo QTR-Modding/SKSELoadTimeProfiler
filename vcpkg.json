@@ -1,21 +1,16 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "name": "mod-control-panel-utilities",
+  "name": "skse-load-time-profiler",
   "version-string": "1.0.0.0",
   "dependencies": [
     "rapidjson",
     "fast-cpp-csv-parser",
     "rsm-binary-io",
-    "simpleini",
     "spdlog",
     "xbyak",
     "rapidcsv",
-    "directxmath",
     "directxtk",
-    "boost-stl-interfaces",
-    "clib-util",
-    "skse-mcp",
-    "clib-utils-qtr"
+    "skse-mcp"
   ],
   "overrides": [
     {

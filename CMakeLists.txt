@@ -14,7 +14,7 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 cmake_minimum_required(VERSION 3.21)
 # Set your project name. This will be the name of your SKSE .dll file.
 set(AUTHOR_NAME "Quantumyilmaz")
-set(PRODUCT_NAME "00_SKSEMenuUtils")
+set(PRODUCT_NAME "00LoadTimeProfiler")
 project(${PRODUCT_NAME} VERSION 1.0.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -45,7 +45,6 @@ set(BUILD_TESTS OFF CACHE BOOL " " FORCE)
 add_subdirectory("$ENV{COMMONLIB_SSE_FOLDER}" ${CMAKE_CURRENT_BINARY_DIR}/_deps/clib-build)
 get_target_property(COMMONLIB_SRC_DIR CommonLibSSE SOURCE_DIR)
 
-find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
 find_path(SKSE_MCP_INCLUDE_DIRS "SKSEMCP/utils.hpp")
 
 file(
@@ -73,7 +72,6 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE include/PCH.h) # <--- PCH.h is
 target_include_directories(
 	${PROJECT_NAME}
 	PRIVATE
-	${CLIB_UTIL_INCLUDE_DIRS}
     ${SKSE_MCP_INCLUDE_DIRS}
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 )

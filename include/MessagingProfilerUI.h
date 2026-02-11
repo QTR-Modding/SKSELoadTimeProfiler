@@ -1,11 +1,5 @@
 #pragma once
 
-namespace MessagingProfilerBackend {
-    std::vector<std::string_view> GetMessageTypeNames();
-    std::vector<std::pair<std::string, std::array<double, SKSE::MessagingInterface::kTotal>>> GetAverageDurations();
-    std::array<double, SKSE::MessagingInterface::kTotal> GetTotalsAvgMs();
-}
-
 namespace MessagingProfilerUI {
     struct State {
         std::vector<bool> selected;
@@ -14,13 +8,35 @@ namespace MessagingProfilerUI {
         bool initializedFromDisk = false;
     };
 
-    // Access global persistent state (single instance)
-    State& GetState();
+    struct DllMeta {
+        std::string author;
+        std::string version;
+        std::string license;
+        bool ok = false;
+    };
 
-    void EnsureSelectionSize(State& s, std::size_t count);
+    inline State g_state;
+    // Access global persistent state
+    inline State& GetState() { return g_state; }
+
+    inline std::unordered_map<std::string, DllMeta> g_metaCache;
+
+    inline void EnsureSelectionSize(State& s, const std::size_t count) {
+        if (s.selected.size() != count) s.selected.assign(count, true);
+    }
+
+    inline void SetInitialVisibility(const std::vector<bool>& vis) {
+        g_state.selected = vis;
+        g_state.initializedFromDisk = true;
+    }
+
+    inline std::vector<bool> GetCurrentVisibility() { return g_state.selected; }
+
+    bool QueryVersionString(const wchar_t* path, const wchar_t* key, std::wstring& out);
+
+    DllMeta GetDllMeta(const std::string& moduleBase);
+
     void Render(State& s, double warnMs, double critMs);
 
-    // Persistence helpers
-    void SetInitialVisibility(const std::vector<bool>& vis);
-    std::vector<bool> GetCurrentVisibility();
+    void ColorCell(double v, double warnMs, double critMs);
 }
