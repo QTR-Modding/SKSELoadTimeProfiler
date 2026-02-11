@@ -11,14 +11,11 @@ std::filesystem::path Utilities::GetLogPath() {
 std::vector<std::string> Utilities::ReadLogFile() {
     std::vector<std::string> logLines;
 
-    // Open the log file
     std::ifstream file(GetLogPath().c_str());
     if (!file.is_open()) {
-        // Handle error
         return logLines;
     }
 
-    // Read and store each line from the file
     std::string line;
     while (std::getline(file, line)) {
         logLines.push_back(line);
@@ -45,6 +42,6 @@ std::optional<std::uint32_t> Utilities::hex_to_u32(std::string_view s) {
 
     auto [ptr, ec] = std::from_chars(first, last, value, 16);
 
-    if (ec != std::errc{} || ptr != last) return std::nullopt; // parse error or trailing junk
+    if (ec != std::errc{} || ptr != last) return std::nullopt;
     return value;
 }
