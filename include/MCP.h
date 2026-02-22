@@ -18,10 +18,10 @@ namespace MCP::UI {
 namespace MCP {
     inline std::string log_path = Utilities::GetLogPath().string();
     inline std::vector<std::string> logLines;
-    inline double profilerWarnMs = 800.0; // default warn threshold
-    inline double profilerCritMs = 2000.0; // default crit threshold
-    inline bool showDllEntries = true; // visibility filter for DLL (SKSE plugin) rows
-    inline bool showEspEntries = true; // visibility filter for ESP rows
+    inline double profilerWarnMs = 800.0;
+    inline double profilerCritMs = 2000.0;
+    inline bool showDllEntries = true;
+    inline bool showEspEntries = true;
 
     void Register();
     void __stdcall RenderLog();

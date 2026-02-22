@@ -4,8 +4,7 @@
 
 std::vector<MessagingProfiler::TaggedRow> MessagingProfiler::GetTaggedRows() {
     std::vector<TaggedRow> out;
-    auto names = GetModuleRowsSnapshot();
-    for (auto& r : names) {
+    for (auto names = GetModuleRowsSnapshot(); auto& r : names) {
         TaggedRow tr;
         tr.module = r.module;
         tr.kind = (r.kind == SourceKind::DLL ? SourceKind::DLL : SourceKind::ESP);
@@ -21,12 +20,12 @@ std::vector<MessagingProfiler::TaggedRow> MessagingProfiler::GetTaggedRows() {
 
 void MessagingProfiler::Install() {
     InitTrampolinePool();
-    auto* mi = SKSE::GetMessagingInterface();
+    const auto mi = SKSE::GetMessagingInterface();
     if (!mi) {
         logger::warn("[Profiler] Messaging interface unavailable");
         return;
     }
-    auto* rawPtr = reinterpret_cast<const MessagingExpose*>(mi)->RawProxy();
+    const auto rawPtr = reinterpret_cast<const MessagingExpose*>(mi)->RawProxy();
     g_rawMessaging = const_cast<SKSE::detail::SKSEMessagingInterface*>(
         static_cast<const SKSE::detail::SKSEMessagingInterface*>(rawPtr));
     if (!g_rawMessaging) {
@@ -280,6 +279,6 @@ std::vector<std::string_view> MessagingProfiler::GetMessageTypeNames() {
 
 std::vector<MessagingProfiler::AverageRow> MessagingProfiler::GetAverageRows() {
     std::vector<AverageRow> rows;
-    for (auto& r : GetModuleRowsSnapshot()) rows.push_back({r.module, r.avgMs, r.kind, r.espTotalMs});
+    for (const auto& r : GetModuleRowsSnapshot()) rows.push_back({r.module, r.avgMs, r.kind, r.espTotalMs});
     return rows;
 }

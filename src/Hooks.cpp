@@ -13,7 +13,6 @@ namespace {
         const auto ns = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).
             count());
         if (name) ESPProfiling::Record(name, ns);
-        logger::info("[ESP] {} {} took {:.3f} ms", tag, name ? name : "<null>", ns / 1'000'000.0);
         return result;
     }
 }
@@ -59,7 +58,6 @@ int64_t Hooks::TESLoad::thunk(int64_t a1, RE::TESFile* file, char a2) {
         const auto sv = file->GetFilename();
         filename.assign(sv.data(), sv.size());
     } else { filename = "<null>"; }
-    logger::info("TESLoad thunk ({})", filename);
     return TimeCall("Load", filename, fn, a1, file, a2);
 }
 
@@ -74,12 +72,10 @@ void Hooks::OpenTESHook::Install() {
 }
 
 bool Hooks::OpenTESHook::thunk1(RE::TESFile* file, RE::NiFile::OpenMode m, bool l) {
-    logger::info("Open thunk1 {}", file ? file->GetFilename() : "<null>");
     return originalFunction1(file, m, l);
 }
 
 bool Hooks::OpenTESHook::thunk2(RE::TESFile* file, RE::NiFile::OpenMode m, bool l) {
-    logger::info("Open thunk2 {}", file ? file->GetFilename() : "<null>");
     return originalFunction2(file, m, l);
 }
 
@@ -94,11 +90,9 @@ void Hooks::CloseTESHook::Install() {
 }
 
 bool Hooks::CloseTESHook::thunk6(RE::TESFile* file, bool a_force) {
-    logger::info("Close thunk6 {}", file ? file->GetFilename() : "<null>");
     return originalFunction6(file, a_force);
 }
 
 bool Hooks::CloseTESHook::thunk7(RE::TESFile* file, bool a_force) {
-    logger::info("Close thunk7 {}", file ? file->GetFilename() : "<null>");
     return originalFunction7(file, a_force);
 }
