@@ -79,9 +79,10 @@ GetAverageDurations() {
 
 std::array<double, SKSE::MessagingInterface::kTotal> MessagingProfiler::GetTotalsAvgMs() {
     std::array<double, SKSE::MessagingInterface::kTotal> result{};
+    const auto limit = std::min<std::size_t>(g_nextIndex.load(std::memory_order_relaxed), MAX_WRAPPERS);
     for (std::uint32_t t = 0; t < SKSE::MessagingInterface::kTotal; ++t) {
         uint64_t totNs = 0, cnt = 0;
-        for (std::size_t i = 0; i < g_nextIndex.load(std::memory_order_relaxed); ++i) {
+        for (std::size_t i = 0; i < limit; ++i) {
             auto& e = g_entries[i];
             totNs += e.perMessage[t].totalNs.load(std::memory_order_relaxed);
             cnt += e.perMessage[t].count.load(std::memory_order_relaxed);
@@ -172,11 +173,16 @@ MessagingProfiler::RawCallback MessagingProfiler::MakeTrampoline(std::size_t idx
 
 MessagingProfiler::RawCallback MessagingProfiler::AllocateWrapper(const RawCallback original,
                                                                   const std::string_view sender, void* callSiteRet) {
-    const auto idx = g_nextIndex.fetch_add(1, std::memory_order_relaxed);
-    if (idx >= MAX_WRAPPERS) {
-        logger::warn("[Profiler] Trampoline capacity exceeded (idx={} >= {}); skipping instrumentation", idx,
-                     MAX_WRAPPERS);
-        return original;
+    auto idx = g_nextIndex.load(std::memory_order_relaxed);
+    while (true) {
+        if (idx >= MAX_WRAPPERS) {
+            logger::warn("[Profiler] Trampoline capacity exceeded (idx={} >= {}); skipping instrumentation", idx,
+                         MAX_WRAPPERS);
+            return original;
+        }
+        if (g_nextIndex.compare_exchange_weak(idx, idx + 1, std::memory_order_relaxed)) {
+            break;
+        }
     }
     auto& e = g_entries[idx];
     e.original = original;
@@ -206,8 +212,9 @@ std::vector<MessagingProfiler::ModuleRow> MessagingProfiler::GetModuleRowsSnapsh
         std::array<uint64_t, SKSE::MessagingInterface::kTotal> sumCnt{};
     };
     std::unordered_map<std::string, Accum> acc;
+    const auto limit = std::min<std::size_t>(g_nextIndex.load(std::memory_order_relaxed), MAX_WRAPPERS);
     // accumulate totals per module per message type
-    for (std::size_t i = 0; i < g_nextIndex.load(std::memory_order_relaxed); ++i) {
+    for (std::size_t i = 0; i < limit; ++i) {
         auto& e = g_entries[i];
         auto& a = acc[e.pluginName];
         for (std::uint32_t t = 0; t < SKSE::MessagingInterface::kTotal; ++t) {
