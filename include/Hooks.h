@@ -21,7 +21,7 @@ namespace Hooks {
 
     class TESLoad {
     public:
-        static void Install();
+        static void Install(SKSE::Trampoline& a_trampoline);
 
     private:
         static int64_t thunk(int64_t a1, RE::TESFile* file, char a2);
@@ -30,7 +30,7 @@ namespace Hooks {
 
     class OpenTESHook {
     public:
-        static void Install();
+        static void Install(SKSE::Trampoline& a_trampoline);
 
     private:
         static bool thunk1(RE::TESFile* file, RE::NiFile::OpenMode a_accessMode, bool a_lock);
@@ -41,7 +41,7 @@ namespace Hooks {
 
     class CloseTESHook {
     public:
-        static void Install();
+        static void Install(SKSE::Trampoline& a_trampoline);
 
     private:
         static bool thunk6(RE::TESFile* file, bool a_force);
