@@ -40,9 +40,11 @@ void LogSettings::Load() {
             }
         // If user never selected anything (empty or all false), treat as default: all true
         bool anySelected = false;
-        for (bool b : vis) if (b) {
-            anySelected = true;
-            break;
+        for (bool b : vis) {
+            if (b) {
+                anySelected = true;
+                break;
+            }
         }
         if (!anySelected) std::ranges::fill(vis, true);
         MessagingProfilerUI::SetInitialVisibility(vis);
@@ -59,8 +61,11 @@ void LogSettings::Save() {
     auto names = MessagingProfiler::GetMessageTypeNames();
     auto vis = MessagingProfilerUI::GetCurrentVisibility();
     rapidjson::Value arr(rapidjson::kArrayType);
-    for (std::size_t i = 0; i < names.size() && i < vis.size(); ++i) if (vis[i]) arr.PushBack(
-        rapidjson::Value(names[i].data(), a), a);
+    for (std::size_t i = 0; i < names.size() && i < vis.size(); ++i) {
+        if (vis[i]) {
+            arr.PushBack(rapidjson::Value(names[i].data(), a), a);
+        }
+    }
     doc.AddMember("profiler_visible", arr, a);
     rapidjson::StringBuffer sb;
     rapidjson::Writer wr(sb);
