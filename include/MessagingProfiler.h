@@ -72,12 +72,6 @@ namespace MessagingProfiler {
     bool Hook_RegisterListener(SKSE::PluginHandle handle, const char* sender, void* callback);
 
 
-    void Install();
-
-    void Dump();
-
-    const char* MessageTypeName(std::uint32_t t);
-
     std::vector<ModuleRow> GetModuleRowsSnapshot();
 
     std::vector<std::string_view> GetMessageTypeNames();
