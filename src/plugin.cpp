@@ -1,8 +1,8 @@
-﻿#include "MCP.h"
+﻿#include "Hooks.h"
 #include "Logger.h"
+#include "MCP.h"
 #include "MessagingProfiler.h"
 #include "Settings.h"
-#include "Hooks.h"
 
 SKSEPluginLoad(const SKSE::LoadInterface* skse) {
     SetupLog();

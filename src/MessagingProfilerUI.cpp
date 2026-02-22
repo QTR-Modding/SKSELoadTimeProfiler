@@ -1,7 +1,6 @@
 #include "MessagingProfilerUI.h"
 #include "MCP.h"
 #include <SKSEMCP/SKSEMenuFramework.hpp>
-
 #include "MessagingProfiler.h"
 #include "Settings.h"
 
