@@ -1,5 +1,5 @@
 
-function(automaticGameFolderOutput wildlander_output steam_owrt_output steam_mods_output lorerim_mods_output)
+function(automaticGameFolderOutput wildlander_output steam_owrt_output steam_mods_output lorerim_mods_output lorerim3_mods_output)
 
     if(DEFINED ENV{WILDLANDER_OWRT_FOLDER} AND IS_DIRECTORY "$ENV{WILDLANDER_OWRT_FOLDER}" AND wildlander_output)
         copyOutputs("$ENV{WILDLANDER_OWRT_FOLDER}/${PRODUCT_NAME}${PROJECT_SUFFIX}")
@@ -15,6 +15,9 @@ function(automaticGameFolderOutput wildlander_output steam_owrt_output steam_mod
     endif()
     if(DEFINED ENV{LORERIM_MODS_FOLDER} AND IS_DIRECTORY "$ENV{LORERIM_MODS_FOLDER}" AND lorerim_mods_output)
         copyOutputs("$ENV{LORERIM_MODS_FOLDER}/${PRODUCT_NAME}${PROJECT_SUFFIX}")
+    endif()
+    if(DEFINED ENV{LORERIM3_MODS_FOLDER} AND IS_DIRECTORY "$ENV{LORERIM3_MODS_FOLDER}" AND lorerim3_mods_output)
+        copyOutputs("$ENV{LORERIM3_MODS_FOLDER}/${PRODUCT_NAME}${PROJECT_SUFFIX}")
     endif()
 
 endfunction()

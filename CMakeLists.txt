@@ -1,4 +1,3 @@
-
 if(NOT DEFINED ENV{COMMONLIB_SSE_FOLDER})
   message(FATAL_ERROR "Missing COMMONLIB_SSE_FOLDER environment variable")
 endif()
@@ -14,13 +13,12 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 # If you use CMake features from higher versions, update this to match.
 cmake_minimum_required(VERSION 3.21)
 # Set your project name. This will be the name of your SKSE .dll file.
-set(AUTHOR_NAME "AUTHORNAME")
-set(PRODUCT_NAME "MODNAME")
-project(${PRODUCT_NAME} VERSION 0.1.0.0 LANGUAGES CXX)
+set(AUTHOR_NAME "Quantumyilmaz")
+set(PRODUCT_NAME "00LoadTimeProfiler")
+project(${PRODUCT_NAME} VERSION 1.0.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
-
 configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.rc.in
         ${CMAKE_CURRENT_BINARY_DIR}/version.rc
@@ -47,23 +45,7 @@ set(BUILD_TESTS OFF CACHE BOOL " " FORCE)
 add_subdirectory("$ENV{COMMONLIB_SSE_FOLDER}" ${CMAKE_CURRENT_BINARY_DIR}/_deps/clib-build)
 get_target_property(COMMONLIB_SRC_DIR CommonLibSSE SOURCE_DIR)
 
-find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
 find_path(SKSE_MCP_INCLUDE_DIRS "SKSEMCP/utils.hpp")
-
-
-#YAML-CPP
-FetchContent_Declare(
-  yaml-cpp
-  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-  GIT_TAG master # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
-)
-FetchContent_GetProperties(yaml-cpp)
-if(NOT yaml-cpp_POPULATED)
-  message(STATUS "Fetching yaml-cpp...")
-  FetchContent_Populate(yaml-cpp)
-  add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR})
-endif()
-
 
 file(
   GLOB_RECURSE
@@ -90,16 +72,36 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE include/PCH.h) # <--- PCH.h is
 target_include_directories(
 	${PROJECT_NAME}
 	PRIVATE
-	${CLIB_UTIL_INCLUDE_DIRS}
     ${SKSE_MCP_INCLUDE_DIRS}
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC yaml-cpp::yaml-cpp)
+if (MSVC)
+  # Good default
+  target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+
+  # If you really want MSVC to warn on truly unused (internal-linkage) functions (C4505),
+  # enable /Wall. It is very noisy, so consider disabling a few chatty warnings.
+  # target_compile_options(${PROJECT_NAME} PRIVATE /Wall
+  #   /wd4514 /wd4710 /wd4711 /wd4820 /wd5045)
+
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  target_compile_options(${PROJECT_NAME} PRIVATE
+    -Wall -Wextra -Wpedantic
+    -Wunused-function
+    -Wunused-member-function) # catches unused class methods (Clang)
+
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(${PROJECT_NAME} PRIVATE
+    -Wall -Wextra -Wpedantic
+    -Wunused-function) # GCC does not warn on unused member funcs
+endif()
+
 target_compile_definitions(${PROJECT_NAME} PRIVATE IS_HOST_PLUGIN)
 
 set(wildlander_output false)
 set(steam_owrt_output false)
 set(steam_mods_output true)
-set(lorerim_mods_output true)
-automaticGameFolderOutput(wildlander_output, steam_owrt_output, steam_mods_output lorerim_mods_output)
+set(lorerim_mods_output false)
+set(lorerim3_mods_output true)
+automaticGameFolderOutput(wildlander_output, steam_owrt_output, steam_mods_output lorerim_mods_output lorerim3_mods_output)
