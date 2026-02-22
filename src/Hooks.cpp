@@ -38,7 +38,9 @@ void ESPProfiling::Record(const std::string_view espName, const uint64_t ns) {
 
 void Hooks::Install() {
     auto& trampoline = SKSE::GetTrampoline();
-    SKSE::AllocTrampoline(14 * 5);
+    constexpr size_t size_per_hook = 14;
+    constexpr size_t NUM_TRAMPOLINE_HOOKS = 5;
+    trampoline.create(size_per_hook * NUM_TRAMPOLINE_HOOKS);
     TESLoad::Install(trampoline);
     OpenTESHook::Install(trampoline);
     CloseTESHook::Install(trampoline);
@@ -64,7 +66,6 @@ void Hooks::OpenTESHook::Install(SKSE::Trampoline& a_trampoline) {
     originalFunction1 =
         a_trampoline.write_call<5>(
         REL::RelocationID(13645, 13753).address() + REL::Relocate(0x24b, 0x23b), thunk1);
-    SKSE::AllocTrampoline(14);
     originalFunction2 =
         a_trampoline.write_call<5>(
         REL::RelocationID(13645, 13753).address() + REL::Relocate(0x2ab, 0x28b), thunk2);
@@ -94,7 +95,6 @@ void Hooks::CloseTESHook::Install(SKSE::Trampoline& a_trampoline) {
     originalFunction6 =
         a_trampoline.write_call<5>(
         REL::RelocationID(13638, 13743).address() + REL::Relocate(0x430, 0x110), thunk6);
-    SKSE::AllocTrampoline(14);
     originalFunction7 =
         a_trampoline.write_call<5>(
         REL::RelocationID(13639, 13744).address() + REL::Relocate(0x1ac, 0x1b0), thunk7);
