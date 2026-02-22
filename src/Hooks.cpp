@@ -35,6 +35,21 @@ void ESPProfiling::Record(const std::string_view espName, const uint64_t ns) {
     if (ns > e.maxNs) e.maxNs = ns;
 }
 
+void ESPProfiling::SetCurrentLoading(const std::string_view espName) {
+    std::lock_guard lk(g_currentMutex);
+    g_currentLoading.assign(espName.data(), espName.size());
+}
+
+void ESPProfiling::ClearCurrentLoading() {
+    std::lock_guard lk(g_currentMutex);
+    g_currentLoading.clear();
+}
+
+std::string ESPProfiling::GetCurrentLoading() {
+    std::lock_guard lk(g_currentMutex);
+    return g_currentLoading;
+}
+
 
 void Hooks::Install() {
     auto& trampoline = SKSE::GetTrampoline();
@@ -59,7 +74,10 @@ int64_t Hooks::TESLoad::thunk(int64_t a1, RE::TESFile* file, char a2) {
         const auto sv = file->GetFilename();
         filename.assign(sv.data(), sv.size());
     } else { filename = "<null>"; }
-    return TimeCall(filename, fn, a1, file, a2);
+    ESPProfiling::SetCurrentLoading(filename);
+    auto result = TimeCall(filename, fn, a1, file, a2);
+    ESPProfiling::ClearCurrentLoading();
+    return result;
 }
 
 void Hooks::OpenTESHook::Install(SKSE::Trampoline& a_trampoline) {
@@ -78,7 +96,10 @@ bool Hooks::OpenTESHook::thunk1(RE::TESFile* file, RE::NiFile::OpenMode m, bool 
         const auto sv = file->GetFilename();
         filename.assign(sv.data(), sv.size());
     } else { filename = "<null>"; }
-    return TimeCall(filename, fn, file, m, l);
+    ESPProfiling::SetCurrentLoading(filename);
+    auto result = TimeCall(filename, fn, file, m, l);
+    ESPProfiling::ClearCurrentLoading();
+    return result;
 }
 
 bool Hooks::OpenTESHook::thunk2(RE::TESFile* file, RE::NiFile::OpenMode m, bool l) {
@@ -88,7 +109,10 @@ bool Hooks::OpenTESHook::thunk2(RE::TESFile* file, RE::NiFile::OpenMode m, bool 
         const auto sv = file->GetFilename();
         filename.assign(sv.data(), sv.size());
     } else { filename = "<null>"; }
-    return TimeCall(filename, fn, file, m, l);
+    ESPProfiling::SetCurrentLoading(filename);
+    auto result = TimeCall(filename, fn, file, m, l);
+    ESPProfiling::ClearCurrentLoading();
+    return result;
 }
 
 void Hooks::CloseTESHook::Install(SKSE::Trampoline& a_trampoline) {
@@ -107,7 +131,10 @@ bool Hooks::CloseTESHook::thunk6(RE::TESFile* file, bool a_force) {
         const auto sv = file->GetFilename();
         filename.assign(sv.data(), sv.size());
     } else { filename = "<null>"; }
-    return TimeCall(filename, fn, file, a_force);
+    ESPProfiling::SetCurrentLoading(filename);
+    auto result = TimeCall(filename, fn, file, a_force);
+    ESPProfiling::ClearCurrentLoading();
+    return result;
 }
 
 bool Hooks::CloseTESHook::thunk7(RE::TESFile* file, bool a_force) {
@@ -117,5 +144,8 @@ bool Hooks::CloseTESHook::thunk7(RE::TESFile* file, bool a_force) {
         const auto sv = file->GetFilename();
         filename.assign(sv.data(), sv.size());
     } else { filename = "<null>"; }
-    return TimeCall(filename, fn, file, a_force);
+    ESPProfiling::SetCurrentLoading(filename);
+    auto result = TimeCall(filename, fn, file, a_force);
+    ESPProfiling::ClearCurrentLoading();
+    return result;
 }

@@ -1,6 +1,11 @@
 #include "MessagingProfiler.h"
 #include "Hooks.h"
 
+namespace {
+    std::mutex g_currentMutex;
+    std::string g_currentModule;
+}
+
 std::vector<MessagingProfiler::TaggedRow> MessagingProfiler::GetTaggedRows() {
     std::vector<TaggedRow> out;
     for (auto names = GetModuleRowsSnapshot(); auto& r : names) {
@@ -113,9 +118,17 @@ std::string MessagingProfiler::ModuleNameFromAddress(const void* addr) {
 }
 
 void MessagingProfiler::WrapperThunk(CallbackEntry* entry, SKSE::MessagingInterface::Message* msg) {
+    {
+        std::lock_guard lk(g_currentMutex);
+        g_currentModule = entry->pluginName;
+    }
     const auto start = std::chrono::high_resolution_clock::now();
     entry->original(msg);
     const auto end = std::chrono::high_resolution_clock::now();
+    {
+        std::lock_guard lk(g_currentMutex);
+        g_currentModule.clear();
+    }
     const auto ns64 =
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
     entry->count.fetch_add(1, std::memory_order_relaxed);
@@ -131,6 +144,11 @@ void MessagingProfiler::WrapperThunk(CallbackEntry* entry, SKSE::MessagingInterf
         while (ns64 > mPrev && !ms.maxNs.compare_exchange_weak(mPrev, ns64, std::memory_order_relaxed)) {
         }
     }
+}
+
+std::string MessagingProfiler::GetCurrentCallbackModule() {
+    std::lock_guard lk(g_currentMutex);
+    return g_currentModule;
 }
 
 void MessagingProfiler::InitTrampolinePool() {

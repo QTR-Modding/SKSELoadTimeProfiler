@@ -74,6 +74,8 @@ namespace MessagingProfiler {
 
     std::vector<ModuleRow> GetModuleRowsSnapshot();
 
+    std::string GetCurrentCallbackModule();
+
     std::vector<std::string_view> GetMessageTypeNames();
 
     struct AverageRow {

@@ -2,6 +2,7 @@
 #include "MCP.h"
 #include <SKSEMCP/SKSEMenuFramework.hpp>
 #include "MessagingProfiler.h"
+#include "Hooks.h"
 #include "Settings.h"
 
 bool MessagingProfilerUI::QueryVersionString(const wchar_t* path, const wchar_t* key, std::wstring& out) {
@@ -65,6 +66,10 @@ void MessagingProfilerUI::Render(State& s, const double warnMs, const double cri
         ImGuiMCP::ImGui::TextUnformatted("Default unit is ms.");
         ImGuiMCP::ImGui::EndTooltip();
     }
+    const auto currentDll = MessagingProfiler::GetCurrentCallbackModule();
+    const auto currentEsp = ESPProfiling::GetCurrentLoading();
+    ImGuiMCP::ImGui::Text("Currently Loading (DLL): %s", currentDll.empty() ? "-" : currentDll.c_str());
+    ImGuiMCP::ImGui::Text("Currently Loading (ESP): %s", currentEsp.empty() ? "-" : currentEsp.c_str());
     // If not initialized from disk and first frame (all true already), ensure default all true explicitly.
     if (!s.initializedFromDisk && !s.selected.empty()) {
         bool any = false;

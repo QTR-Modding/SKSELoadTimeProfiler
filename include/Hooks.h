@@ -10,10 +10,15 @@ namespace ESPProfiling {
 
     inline std::mutex g_mutex;
     inline std::unordered_map<std::string, Entry> g_entries;
+    inline std::mutex g_currentMutex;
+    inline std::string g_currentLoading;
 
     std::vector<std::pair<std::string, uint64_t>> SnapshotTotals();
 
     void Record(std::string_view espName, uint64_t ns);
+    void SetCurrentLoading(std::string_view espName);
+    void ClearCurrentLoading();
+    std::string GetCurrentLoading();
 }
 
 namespace Hooks {
