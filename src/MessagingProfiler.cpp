@@ -1,9 +1,30 @@
 #include "MessagingProfiler.h"
 #include "Hooks.h"
+#include "MCP.h"
 
 namespace {
     std::mutex g_currentMutex;
     std::string g_currentModule;
+    std::atomic<long long> g_firstRegisterNs{-1};
+    std::atomic<long long> g_lastRegisterNs{-1};
+    std::atomic<bool> g_regSpanFrozen{false};
+
+    void UpdateRegisterSpan() {
+        const auto first = g_firstRegisterNs.load(std::memory_order_relaxed);
+        const auto last = g_lastRegisterNs.load(std::memory_order_relaxed);
+        if (first < 0 || last < first) return;
+        const auto diffMs = static_cast<double>(last - first) / 1'000'000.0;
+        MCP::loadTimeMs.store(diffMs, std::memory_order_relaxed);
+    }
+}
+
+void MessagingProfiler::SetRegisterSpanStartNow() {
+    const auto nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                           std::chrono::steady_clock::now().time_since_epoch())
+                           .count();
+    auto expected = g_firstRegisterNs.load(std::memory_order_relaxed);
+    while (expected < 0 && !g_firstRegisterNs.compare_exchange_weak(expected, nowNs, std::memory_order_relaxed)) {
+    }
 }
 
 std::vector<MessagingProfiler::TaggedRow> MessagingProfiler::GetTaggedRows() {
@@ -29,6 +50,11 @@ void MessagingProfiler::Install() {
         logger::warn("[Profiler] Messaging interface unavailable");
         return;
     }
+    mi->RegisterListener("SKSE", [](SKSE::MessagingInterface::Message* msg) {
+        if (msg && msg->type == SKSE::MessagingInterface::kPostLoad) {
+            g_regSpanFrozen.store(true, std::memory_order_relaxed);
+        }
+    });
     const auto rawPtr = reinterpret_cast<const MessagingExpose*>(mi)->RawProxy();
     g_rawMessaging = const_cast<SKSE::detail::SKSEMessagingInterface*>(
         static_cast<const SKSE::detail::SKSEMessagingInterface*>(rawPtr));
@@ -218,6 +244,18 @@ MessagingProfiler::RawCallback MessagingProfiler::AllocateWrapper(const RawCallb
 bool MessagingProfiler::Hook_RegisterListener(const SKSE::PluginHandle handle, const char* sender, void* callback) {
     if (!callback) return g_origRegister(handle, sender, callback);
     if (!sender || std::strcmp(sender, "SKSE") != 0) return g_origRegister(handle, sender, callback);
+
+    // SKSE plugin load heuristic
+    if (!g_regSpanFrozen.load(std::memory_order_relaxed)) {
+        const auto nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                               std::chrono::steady_clock::now().time_since_epoch())
+                               .count();
+        auto expected = -1LL;
+        g_firstRegisterNs.compare_exchange_strong(expected, nowNs, std::memory_order_relaxed);
+        g_lastRegisterNs.store(nowNs, std::memory_order_relaxed);
+        UpdateRegisterSpan();
+    }
+
     const auto cb = reinterpret_cast<RawCallback>(callback);
     void* retAddr = _ReturnAddress();
     const auto wrapped = AllocateWrapper(cb, sender, retAddr);

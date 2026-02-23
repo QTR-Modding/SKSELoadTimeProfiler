@@ -69,10 +69,13 @@ void MessagingProfilerUI::Render(State& s, const double warnMs, const double cri
     }
     const double loadMs = MCP::loadTimeMs.load(std::memory_order_relaxed);
     if (loadMs >= 0.0) {
-        const double displayScale = s.showSeconds ? 0.001 : 1.0;
-        const char* displayFmt = s.showSeconds ? "SKSE total initial Plugin Load time: %.2f s" :
-                                                 "SKSE total initial Plugin Load time: %.3f ms";
-        ImGuiMCP::ImGui::Text(displayFmt, loadMs * displayScale);
+        if (s.showSeconds) {
+            ImGuiMCP::ImGui::Text("SKSE plugin initialization time (heuristic): %.2f s", loadMs * 0.001);
+        } else {
+            ImGuiMCP::ImGui::Text("SKSE plugin initialization time (heuristic): %.3f ms", loadMs);
+        }
+    } else {
+        ImGuiMCP::ImGui::TextUnformatted("SKSE plugin initialization time (heuristic): -");
     }
     const auto currentDll = MessagingProfiler::GetCurrentCallbackModule();
     const auto currentEsp = ESPProfiling::GetCurrentLoading();

@@ -75,6 +75,7 @@ namespace MessagingProfiler {
     std::vector<ModuleRow> GetModuleRowsSnapshot();
 
     std::string GetCurrentCallbackModule();
+    void SetRegisterSpanStartNow();
 
     std::vector<std::string_view> GetMessageTypeNames();
 
