@@ -126,6 +126,26 @@ namespace {
         if (ImGuiMCP::ImGui::BeginTable("##prof-summary", 2,
                                         ImGuiMCP::ImGuiTableFlags_SizingStretchProp |
                                         ImGuiMCP::ImGuiTableFlags_BordersInnerV)) {
+            const char* labels[] = {
+                Localization::SkseInitTimeHeuristic.c_str(),
+                Localization::TotalDllTime.c_str(),
+                Localization::TotalEspTime.c_str(),
+                Localization::TotalTime.c_str(),
+                Localization::CurrentlyLoadingDll.c_str(),
+                Localization::CurrentlyLoadingEsp.c_str(),
+            };
+            float labelWidth = 0.0f;
+            for (const char* label : labels) {
+                ImGuiMCP::ImVec2 size{};
+                ImGuiMCP::ImGui::CalcTextSize(&size, label, nullptr, false, 0.0f);
+                labelWidth = std::max(labelWidth, size.x);
+            }
+            const auto* style = ImGuiMCP::ImGui::GetStyle();
+            labelWidth += style ? style->ItemSpacing.x : 0.0f;
+            ImGuiMCP::ImGui::TableSetupColumn("##summary-labels",
+                                              ImGuiMCP::ImGuiTableColumnFlags_WidthFixed, labelWidth);
+            ImGuiMCP::ImGui::TableSetupColumn("##summary-values",
+                                              ImGuiMCP::ImGuiTableColumnFlags_WidthStretch);
             ImGuiMCP::ImGui::TableNextRow();
             ImGuiMCP::ImGui::TableSetColumnIndex(0);
             ImGuiMCP::ImGui::TextUnformatted(Localization::SkseInitTimeHeuristic.c_str());
