@@ -70,8 +70,8 @@ void MessagingProfilerUI::Render(State& s, const double warnMs, const double cri
     const double loadMs = MCP::loadTimeMs.load(std::memory_order_relaxed);
     if (loadMs >= 0.0) {
         const double displayScale = s.showSeconds ? 0.001 : 1.0;
-        const char* displayFmt = s.showSeconds ? "SKSE total Plugin Load time: %.2f s" :
-                                                 "SKSE total Plugin Load time: %.3f ms";
+        const char* displayFmt = s.showSeconds ? "SKSE total initial Plugin Load time: %.2f s" :
+                                                 "SKSE total initial Plugin Load time: %.3f ms";
         ImGuiMCP::ImGui::Text(displayFmt, loadMs * displayScale);
     }
     const auto currentDll = MessagingProfiler::GetCurrentCallbackModule();
