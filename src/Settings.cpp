@@ -29,6 +29,8 @@ void Settings::Load() {
         MCP::showDllEntries = doc["show_dll_entries"].GetBool();
     if (doc.HasMember("show_esp_entries") && doc["show_esp_entries"].IsBool())
         MCP::showEspEntries = doc["show_esp_entries"].GetBool();
+    if (doc.HasMember("show_seconds") && doc["show_seconds"].IsBool())
+        MessagingProfilerUI::GetState().showSeconds = doc["show_seconds"].GetBool();
     if (doc.HasMember("profiler_visible") && doc["profiler_visible"].IsArray()) {
         auto arr = doc["profiler_visible"].GetArray();
         auto names = MessagingProfiler::GetMessageTypeNames();
@@ -58,6 +60,7 @@ void Settings::Save() {
     doc.AddMember("profiler_crit_ms", MCP::profilerCritMs, a);
     doc.AddMember("show_dll_entries", MCP::showDllEntries, a);
     doc.AddMember("show_esp_entries", MCP::showEspEntries, a);
+    doc.AddMember("show_seconds", MessagingProfilerUI::GetState().showSeconds, a);
     auto names = MessagingProfiler::GetMessageTypeNames();
     auto vis = MessagingProfilerUI::GetCurrentVisibility();
     rapidjson::Value arr(rapidjson::kArrayType);
