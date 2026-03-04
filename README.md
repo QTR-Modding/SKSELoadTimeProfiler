@@ -13,3 +13,4 @@ Automatically imports:
 #### LICENSE
 This project is licensed under the GNU General Public License v3.0 or later (`GPL-3.0-or-later`).
 See the `LICENSE` file for details.
+See also `NOTICE` for project-specific licensing declaration.
