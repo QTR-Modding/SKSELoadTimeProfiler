@@ -12,6 +12,7 @@ namespace ESPProfiling {
     inline std::unordered_map<std::string, Entry> g_entries;
     inline std::mutex g_currentMutex;
     inline std::string g_currentLoading;
+    inline long long g_currentStartNs{-1};
 
     std::vector<std::pair<std::string, uint64_t>> SnapshotTotals();
 
@@ -19,6 +20,7 @@ namespace ESPProfiling {
     void SetCurrentLoading(std::string_view espName);
     void ClearCurrentLoading();
     std::string GetCurrentLoading();
+    double GetCurrentLoadingElapsedMs();
 }
 
 namespace Hooks {

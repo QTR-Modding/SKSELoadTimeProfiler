@@ -104,6 +104,83 @@ namespace {
         return Localization::MessageTypeTooltip(index);
     }
 
+    float ComputeSummaryLabelWidth() {
+        const char* labels[] = {
+            Localization::SkseInitTimeHeuristic.c_str(),
+            Localization::TotalDllTime.c_str(),
+            Localization::TotalEspTime.c_str(),
+            Localization::TotalTime.c_str(),
+            Localization::CurrentlyLoadingDll.c_str(),
+            Localization::CurrentlyLoadingEsp.c_str(),
+        };
+
+        float labelWidth = 0.0f;
+        for (const char* label : labels) {
+            ImGuiMCP::ImVec2 size{};
+            ImGuiMCP::ImGui::CalcTextSize(&size, label, nullptr, false, 0.0f);
+            labelWidth = std::max(labelWidth, size.x);
+        }
+
+        const auto* style = ImGuiMCP::ImGui::GetStyle();
+        return labelWidth + (style ? style->ItemSpacing.x : 0.0f);
+    }
+
+    void RenderSummaryCurrentLoadingValue(const std::string& name, const double elapsedMs, const bool showSeconds) {
+        if (name.empty()) {
+            ImGuiMCP::ImGui::TextUnformatted(Localization::PlaceholderEmpty.c_str());
+            return;
+        }
+
+        if (elapsedMs < 0.0) {
+            ImGuiMCP::ImGui::TextUnformatted(name.c_str());
+            return;
+        }
+
+        if (showSeconds) {
+            if (elapsedMs >= 1000.0)
+                ImGuiMCP::ImGui::Text("%s (%.0f s)", name.c_str(), elapsedMs * 0.001);
+            else
+                ImGuiMCP::ImGui::TextUnformatted(name.c_str());
+        } else {
+            if (elapsedMs >= 1.0)
+                ImGuiMCP::ImGui::Text("%s (%.0f ms)", name.c_str(), elapsedMs);
+            else
+                ImGuiMCP::ImGui::TextUnformatted(name.c_str());
+        }
+    }
+
+    void RenderSummaryCurrentLoadingRow(const char* label, const std::string& name, const double elapsedMs,
+                                        const bool showSeconds) {
+        ImGuiMCP::ImGui::TableNextRow();
+        ImGuiMCP::ImGui::TableSetColumnIndex(0);
+        ImGuiMCP::ImGui::TextUnformatted(label);
+        ImGuiMCP::ImGui::TableSetColumnIndex(1);
+        RenderSummaryCurrentLoadingValue(name, elapsedMs, showSeconds);
+    }
+
+    void RenderResultsToolbar(MessagingProfilerUI::State& s, bool& showDllEntries, bool& showEspEntries) {
+        ImGuiMCP::ImGui::SetNextItemWidth(260.0f);
+        const auto searchLabel = Localization::MakeLabel(Localization::SearchLabel, "search");
+        ImGuiMCP::ImGui::InputTextWithHint(searchLabel.c_str(), Localization::SearchHint.c_str(), s.search.data(),
+                                           s.search.size());
+        ImGuiMCP::ImGui::SameLine();
+
+        bool dll = showDllEntries;
+        const auto dllLabel = Localization::MakeLabel(Localization::FilterDll, "filter-dll");
+        if (ImGuiMCP::ImGui::Checkbox(dllLabel.c_str(), &dll)) {
+            showDllEntries = dll;
+            Settings::Save();
+        }
+
+        ImGuiMCP::ImGui::SameLine();
+        bool esp = showEspEntries;
+        const auto espLabel = Localization::MakeLabel(Localization::FilterEsp, "filter-esp");
+        if (ImGuiMCP::ImGui::Checkbox(espLabel.c_str(), &esp)) {
+            showEspEntries = esp;
+            Settings::Save();
+        }
+    }
+
     void RenderSummary(const MessagingProfilerUI::State& s) {
         ImGuiMCP::ImGui::TextUnformatted(Localization::Summary.c_str());
         const auto taggedRows = MessagingProfiler::GetTaggedRows();
@@ -126,24 +203,8 @@ namespace {
         if (ImGuiMCP::ImGui::BeginTable("##prof-summary", 2,
                                         ImGuiMCP::ImGuiTableFlags_SizingStretchProp |
                                         ImGuiMCP::ImGuiTableFlags_BordersInnerV)) {
-            const char* labels[] = {
-                Localization::SkseInitTimeHeuristic.c_str(),
-                Localization::TotalDllTime.c_str(),
-                Localization::TotalEspTime.c_str(),
-                Localization::TotalTime.c_str(),
-                Localization::CurrentlyLoadingDll.c_str(),
-                Localization::CurrentlyLoadingEsp.c_str(),
-            };
-            float labelWidth = 0.0f;
-            for (const char* label : labels) {
-                ImGuiMCP::ImVec2 size{};
-                ImGuiMCP::ImGui::CalcTextSize(&size, label, nullptr, false, 0.0f);
-                labelWidth = std::max(labelWidth, size.x);
-            }
-            const auto* style = ImGuiMCP::ImGui::GetStyle();
-            labelWidth += style ? style->ItemSpacing.x : 0.0f;
             ImGuiMCP::ImGui::TableSetupColumn("##summary-labels",
-                                              ImGuiMCP::ImGuiTableColumnFlags_WidthFixed, labelWidth);
+                                              ImGuiMCP::ImGuiTableColumnFlags_WidthFixed, ComputeSummaryLabelWidth());
             ImGuiMCP::ImGui::TableSetupColumn("##summary-values",
                                               ImGuiMCP::ImGuiTableColumnFlags_WidthStretch);
             ImGuiMCP::ImGui::TableNextRow();
@@ -181,20 +242,13 @@ namespace {
             ImGuiMCP::ImGui::Text(displayFmt, totalAllMs * displayScale);
 
             const auto currentDll = MessagingProfiler::GetCurrentCallbackModule();
+            const double currentDllMs = MessagingProfiler::GetCurrentCallbackElapsedMs();
             const auto currentEsp = ESPProfiling::GetCurrentLoading();
-            ImGuiMCP::ImGui::TableNextRow();
-            ImGuiMCP::ImGui::TableSetColumnIndex(0);
-            ImGuiMCP::ImGui::TextUnformatted(Localization::CurrentlyLoadingDll.c_str());
-            ImGuiMCP::ImGui::TableSetColumnIndex(1);
-            ImGuiMCP::ImGui::TextUnformatted(currentDll.empty() ? Localization::PlaceholderEmpty.c_str()
-                                                                : currentDll.c_str());
-
-            ImGuiMCP::ImGui::TableNextRow();
-            ImGuiMCP::ImGui::TableSetColumnIndex(0);
-            ImGuiMCP::ImGui::TextUnformatted(Localization::CurrentlyLoadingEsp.c_str());
-            ImGuiMCP::ImGui::TableSetColumnIndex(1);
-            ImGuiMCP::ImGui::TextUnformatted(currentEsp.empty() ? Localization::PlaceholderEmpty.c_str()
-                                                                : currentEsp.c_str());
+            const double currentEspMs = ESPProfiling::GetCurrentLoadingElapsedMs();
+            RenderSummaryCurrentLoadingRow(Localization::CurrentlyLoadingDll.c_str(), currentDll, currentDllMs,
+                                           s.showSeconds);
+            RenderSummaryCurrentLoadingRow(Localization::CurrentlyLoadingEsp.c_str(), currentEsp, currentEspMs,
+                                           s.showSeconds);
             ImGuiMCP::ImGui::EndTable();
         }
     }
@@ -349,24 +403,7 @@ namespace {
                             const double critMs, bool& showDllEntries, bool& showEspEntries) {
         ImGuiMCP::ImGui::Separator();
         ImGuiMCP::ImGui::Spacing();
-        ImGuiMCP::ImGui::SetNextItemWidth(260.0f);
-        const auto searchLabel = Localization::MakeLabel(Localization::SearchLabel, "search");
-        ImGuiMCP::ImGui::InputTextWithHint(searchLabel.c_str(), Localization::SearchHint.c_str(), s.search.data(),
-                                           s.search.size());
-        ImGuiMCP::ImGui::SameLine();
-        bool dll = showDllEntries;
-        const auto dllLabel = Localization::MakeLabel(Localization::FilterDll, "filter-dll");
-        if (ImGuiMCP::ImGui::Checkbox(dllLabel.c_str(), &dll)) {
-            showDllEntries = dll;
-            Settings::Save();
-        }
-        ImGuiMCP::ImGui::SameLine();
-        bool esp = showEspEntries;
-        const auto espLabel = Localization::MakeLabel(Localization::FilterEsp, "filter-esp");
-        if (ImGuiMCP::ImGui::Checkbox(espLabel.c_str(), &esp)) {
-            showEspEntries = esp;
-            Settings::Save();
-        }
+        RenderResultsToolbar(s, showDllEntries, showEspEntries);
         ImGuiMCP::ImGui::Spacing();
 
         ImGuiMCP::ImVec2 avail{};

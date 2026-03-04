@@ -5,6 +5,7 @@
 namespace {
     std::mutex g_currentMutex;
     std::string g_currentModule;
+    long long g_currentStartNs{-1};
     std::atomic<long long> g_firstRegisterNs{-1};
     std::atomic<long long> g_lastRegisterNs{-1};
     std::atomic g_regSpanFrozen{false};
@@ -138,6 +139,9 @@ void MessagingProfiler::WrapperThunk(CallbackEntry* entry, SKSE::MessagingInterf
     {
         std::lock_guard lk(g_currentMutex);
         g_currentModule = entry->pluginName;
+        g_currentStartNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                              std::chrono::steady_clock::now().time_since_epoch())
+                              .count();
     }
     const auto start = std::chrono::high_resolution_clock::now();
     entry->original(msg);
@@ -145,6 +149,7 @@ void MessagingProfiler::WrapperThunk(CallbackEntry* entry, SKSE::MessagingInterf
     {
         std::lock_guard lk(g_currentMutex);
         g_currentModule.clear();
+        g_currentStartNs = -1;
     }
     const auto ns64 =
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
@@ -295,6 +300,16 @@ std::vector<MessagingProfiler::ModuleRow> MessagingProfiler::GetModuleRowsSnapsh
 std::string MessagingProfiler::GetCurrentCallbackModule() {
     std::lock_guard lk(g_currentMutex);
     return g_currentModule;
+}
+
+double MessagingProfiler::GetCurrentCallbackElapsedMs() {
+    std::lock_guard lk(g_currentMutex);
+    if (g_currentModule.empty() || g_currentStartNs < 0) return -1.0;
+    const auto nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                           std::chrono::steady_clock::now().time_since_epoch())
+                           .count();
+    if (nowNs < g_currentStartNs) return -1.0;
+    return static_cast<double>(nowNs - g_currentStartNs) / 1'000'000.0;
 }
 
 void MessagingProfiler::SetRegisterSpanStartNow() {

@@ -40,16 +40,30 @@ void ESPProfiling::Record(const std::string_view espName, const uint64_t ns) {
 void ESPProfiling::SetCurrentLoading(const std::string_view espName) {
     std::lock_guard lk(g_currentMutex);
     g_currentLoading.assign(espName.data(), espName.size());
+    g_currentStartNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                          std::chrono::steady_clock::now().time_since_epoch())
+                          .count();
 }
 
 void ESPProfiling::ClearCurrentLoading() {
     std::lock_guard lk(g_currentMutex);
     g_currentLoading.clear();
+    g_currentStartNs = -1;
 }
 
 std::string ESPProfiling::GetCurrentLoading() {
     std::lock_guard lk(g_currentMutex);
     return g_currentLoading;
+}
+
+double ESPProfiling::GetCurrentLoadingElapsedMs() {
+    std::lock_guard lk(g_currentMutex);
+    if (g_currentLoading.empty() || g_currentStartNs < 0) return -1.0;
+    const auto nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                           std::chrono::steady_clock::now().time_since_epoch())
+                           .count();
+    if (nowNs < g_currentStartNs) return -1.0;
+    return static_cast<double>(nowNs - g_currentStartNs) / 1'000'000.0;
 }
 
 
