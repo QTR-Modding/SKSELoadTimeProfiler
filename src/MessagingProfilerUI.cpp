@@ -479,11 +479,8 @@ namespace {
                                  totalsBg ? totalsBg->z : 0.2f, totalsAlpha));
             ImGuiMCP::ImGui::TableSetBgColor(ImGuiMCP::ImGuiTableBgTarget_RowBg0, totalsColor);
             ImGuiMCP::ImGui::TableSetColumnIndex(0);
-            std::string totalsLabel = Localization::TotalsRowLabel;
-            totalsLabel += " (";
-            totalsLabel += std::to_string(renderRows.rows.size());
-            totalsLabel += ")";
-            ImGuiMCP::ImGui::TextUnformatted(totalsLabel.c_str());
+            ImGuiMCP::ImGui::Text("%s (%llu)", Localization::TotalsRowLabel.c_str(),
+                                  static_cast<unsigned long long>(renderRows.rows.size()));
             ImGuiMCP::ImGui::TableSetColumnIndex(1);
             ImGuiMCP::ImGui::TextUnformatted(Localization::PlaceholderEmpty.c_str());
             ImGuiMCP::ImGui::TableSetColumnIndex(2);
