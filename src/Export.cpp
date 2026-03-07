@@ -366,22 +366,43 @@ namespace {
         const auto msgIndices = BuildExportMessageIndices(messageNames);
         const auto totals = BuildExportTotals(rows, msgIndices);
 
-        out << "summary_key,summary_ms\n";
-        out << "skse_init_time_heuristic_ms," << FormatMs(summary.skseInitMs) << "\n";
-        out << "total_dll_time_ms," << FormatMs(summary.totalDllMs) << "\n";
-        out << "total_esp_time_ms," << FormatMs(summary.totalEspMs) << "\n";
-        out << "total_time_ms," << FormatMs(summary.totalAllMs) << "\n";
+        const std::vector<std::pair<std::string, std::string>> summaryRows = {
+            {"skse_init_time_heuristic_ms", FormatMs(summary.skseInitMs)},
+            {"total_dll_time_ms", FormatMs(summary.totalDllMs)},
+            {"total_esp_time_ms", FormatMs(summary.totalEspMs)},
+            {"total_time_ms", FormatMs(summary.totalAllMs)},
+            {"dll_count", std::to_string(summary.dllCount)},
+            {"esp_count", std::to_string(summary.espCount)},
+        };
 
-        out << "dll_count," << summary.dllCount << "\n";
-        out << "esp_count," << summary.espCount << "\n\n";
+        const std::vector<std::pair<std::string, std::string>> systemRows = {
+            {"skyrim_runtime_variant", EscapeCsv(systemInfo.runtimeVariant)},
+            {"skyrim_runtime_version", EscapeCsv(systemInfo.runtimeVersion)},
+            {"os_name_version", EscapeCsv(systemInfo.osNameVersion)},
+            {"cpu_vendor", EscapeCsv(systemInfo.cpuVendor)},
+            {"cpu_model", EscapeCsv(systemInfo.cpuModel)},
+            {"gpu_list", EscapeCsv(systemInfo.gpuList)},
+        };
 
-        out << "system_key,system_value\n";
-        out << "skyrim_runtime_variant," << EscapeCsv(systemInfo.runtimeVariant) << "\n";
-        out << "skyrim_runtime_version," << EscapeCsv(systemInfo.runtimeVersion) << "\n";
-        out << "os_name_version," << EscapeCsv(systemInfo.osNameVersion) << "\n";
-        out << "cpu_vendor," << EscapeCsv(systemInfo.cpuVendor) << "\n";
-        out << "cpu_model," << EscapeCsv(systemInfo.cpuModel) << "\n";
-        out << "gpu_list," << EscapeCsv(systemInfo.gpuList) << "\n\n";
+        out << "summary_key,summary_ms,system_key,system_value\n";
+        const auto rowCount = std::max(summaryRows.size(), systemRows.size());
+        for (std::size_t i = 0; i < rowCount; ++i) {
+            if (i < summaryRows.size()) {
+                out << summaryRows[i].first << ',' << summaryRows[i].second;
+            } else {
+                out << ',';
+            }
+
+            out << ',';
+
+            if (i < systemRows.size()) {
+                out << systemRows[i].first << ',' << systemRows[i].second;
+            } else {
+                out << ',';
+            }
+            out << "\n";
+        }
+        out << "\n";
 
         out << "module,author,version,type,total_ms";
         for (const auto idx : msgIndices) out << ',' << EscapeCsv(std::string(messageNames[idx]) + "_ms");
