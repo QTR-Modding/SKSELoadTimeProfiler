@@ -53,11 +53,6 @@ void MessagingProfiler::Install() {
         logger::warn("[Profiler] Messaging interface unavailable");
         return;
     }
-    mi->RegisterListener("SKSE", [](SKSE::MessagingInterface::Message* msg) {
-        if (msg && msg->type == SKSE::MessagingInterface::kPostLoad) {
-            g_regSpanFrozen.store(true, std::memory_order_relaxed);
-        }
-    });
     const auto rawPtr = reinterpret_cast<const MessagingExpose*>(mi)->RawProxy();
     g_rawMessaging = const_cast<SKSE::detail::SKSEMessagingInterface*>(
         static_cast<const SKSE::detail::SKSEMessagingInterface*>(rawPtr));
@@ -122,6 +117,9 @@ std::string MessagingProfiler::ModuleNameFromAddress(const void* addr) {
 }
 
 void MessagingProfiler::WrapperThunk(CallbackEntry* entry, SKSE::MessagingInterface::Message* msg) {
+    if (msg && msg->type == SKSE::MessagingInterface::kPostLoad) {
+        g_regSpanFrozen.store(true, std::memory_order_relaxed);
+    }
     {
         std::lock_guard lk(g_currentMutex);
         g_currentModule = entry->pluginName;
