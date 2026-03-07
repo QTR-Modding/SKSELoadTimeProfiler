@@ -50,10 +50,10 @@ namespace {
         return Localization::PlaceholderEmpty.empty() ? "-" : Localization::PlaceholderEmpty.c_str();
     }
 
-    std::string FormatMs(const double value) {
-        if (value < 0.0) return {};
+    std::string FormatSeconds(const double valueMs) {
+        if (valueMs < 0.0) return {};
         std::ostringstream os;
-        os << std::fixed << std::setprecision(0) << value;
+        os << std::fixed << std::setprecision(2) << (valueMs / 1000.0);
         return os.str();
     }
 
@@ -367,10 +367,10 @@ namespace {
         const auto totals = BuildExportTotals(rows, msgIndices);
 
         const std::vector<std::pair<std::string, std::string>> summaryRows = {
-            {"skse_init_time_heuristic_ms", FormatMs(summary.skseInitMs)},
-            {"total_dll_time_ms", FormatMs(summary.totalDllMs)},
-            {"total_esp_time_ms", FormatMs(summary.totalEspMs)},
-            {"total_time_ms", FormatMs(summary.totalAllMs)},
+            {"skse_init_time_heuristic_s", FormatSeconds(summary.skseInitMs)},
+            {"total_dll_time_s", FormatSeconds(summary.totalDllMs)},
+            {"total_esp_time_s", FormatSeconds(summary.totalEspMs)},
+            {"total_time_s", FormatSeconds(summary.totalAllMs)},
             {"dll_count", std::to_string(summary.dllCount)},
             {"esp_count", std::to_string(summary.espCount)},
         };
@@ -384,7 +384,7 @@ namespace {
             {"gpu_list", EscapeCsv(systemInfo.gpuList)},
         };
 
-        out << "summary_key,summary_ms,system_key,system_value\n";
+        out << "summary_key,summary_s,system_key,system_value\n";
         const auto rowCount = std::max(summaryRows.size(), systemRows.size());
         for (std::size_t i = 0; i < rowCount; ++i) {
             if (i < summaryRows.size()) {
@@ -404,17 +404,17 @@ namespace {
         }
         out << "\n";
 
-        out << "module,author,version,type,total_ms";
-        for (const auto idx : msgIndices) out << ',' << EscapeCsv(std::string(messageNames[idx]) + "_ms");
+        out << "module,author,version,type,total_s";
+        for (const auto idx : msgIndices) out << ',' << EscapeCsv(std::string(messageNames[idx]) + "_s");
         out << "\n";
 
         out << EscapeCsv(fmt::format("{} ({})", Localization::TotalsRowLabel, totals.rowCount)) << ',';
         out << EscapeCsv(PlaceholderText()) << ',';
         out << EscapeCsv(PlaceholderText()) << ',';
         out << EscapeCsv(PlaceholderText()) << ',';
-        out << FormatMs(totals.grandTotal);
+        out << FormatSeconds(totals.grandTotal);
         for (const auto idx : msgIndices) {
-            out << ',' << FormatMs(totals.colTotals[idx]);
+            out << ',' << FormatSeconds(totals.colTotals[idx]);
         }
         out << "\n";
 
@@ -423,11 +423,11 @@ namespace {
             out << EscapeCsv(row.author) << ',';
             out << EscapeCsv(row.version) << ',';
             out << (row.isEsp ? "ESP" : "DLL") << ',';
-            out << FormatMs(row.totalMs);
+            out << FormatSeconds(row.totalMs);
             for (const auto idx : msgIndices) {
                 double value = row.perMsg[idx];
                 if (row.isEsp) value = 0.0;
-                out << ',' << FormatMs(value);
+                out << ',' << FormatSeconds(value);
             }
             out << "\n";
         }
@@ -450,10 +450,10 @@ namespace {
         });
 
         out << "Summary\n";
-        out << "skse_init_time_heuristic_ms: " << FormatMs(summary.skseInitMs) << "\n";
-        out << "total_dll_time_ms: " << FormatMs(summary.totalDllMs) << "\n";
-        out << "total_esp_time_ms: " << FormatMs(summary.totalEspMs) << "\n";
-        out << "total_time_ms: " << FormatMs(summary.totalAllMs) << "\n";
+        out << "skse_init_time_heuristic_s: " << FormatSeconds(summary.skseInitMs) << "\n";
+        out << "total_dll_time_s: " << FormatSeconds(summary.totalDllMs) << "\n";
+        out << "total_esp_time_s: " << FormatSeconds(summary.totalEspMs) << "\n";
+        out << "total_time_s: " << FormatSeconds(summary.totalAllMs) << "\n";
         out << "dll_count: " << summary.dllCount << "\n";
         out << "esp_count: " << summary.espCount << "\n\n";
 
@@ -471,13 +471,13 @@ namespace {
 
         std::vector<std::string> msgHeaders;
         msgHeaders.reserve(msgIndices.size());
-        for (const auto idx : msgIndices) msgHeaders.push_back(std::string(messageNames[idx]) + "_ms");
+        for (const auto idx : msgIndices) msgHeaders.push_back(std::string(messageNames[idx]) + "_s");
 
         std::size_t moduleWidth = std::string_view("module").size();
         std::size_t authorWidth = std::string_view("author").size();
         std::size_t versionWidth = std::string_view("version").size();
         std::size_t typeWidth = std::string_view("type").size();
-        std::size_t totalWidth = std::string_view("total_ms").size();
+        std::size_t totalWidth = std::string_view("total_s").size();
         std::vector<std::size_t> msgWidths(msgHeaders.size(), 0);
         for (std::size_t i = 0; i < msgHeaders.size(); ++i) msgWidths[i] = msgHeaders[i].size();
 
@@ -500,7 +500,7 @@ namespace {
             rr.author = PlaceholderText();
             rr.version = PlaceholderText();
             rr.type = PlaceholderText();
-            rr.total = FormatMs(totals.grandTotal);
+            rr.total = FormatSeconds(totals.grandTotal);
             rr.perMsg.reserve(msgIndices.size());
 
             moduleWidth = std::min(kMaxModuleWidth, std::max(moduleWidth, rr.module.size()));
@@ -511,7 +511,7 @@ namespace {
 
             for (std::size_t c = 0; c < msgIndices.size(); ++c) {
                 const auto idx = msgIndices[c];
-                const auto cell = FormatMs(totals.colTotals[idx]);
+                const auto cell = FormatSeconds(totals.colTotals[idx]);
                 rr.perMsg.push_back(cell);
                 if (c < msgWidths.size()) msgWidths[c] = std::max(msgWidths[c], cell.size());
             }
@@ -525,7 +525,7 @@ namespace {
             rr.author = Ellipsize(row->author, kMaxAuthorWidth);
             rr.version = Ellipsize(row->version, kMaxVersionWidth);
             rr.type = row->isEsp ? "ESP" : "DLL";
-            rr.total = FormatMs(row->totalMs);
+            rr.total = FormatSeconds(row->totalMs);
             rr.perMsg.reserve(msgIndices.size());
 
             moduleWidth = std::min(kMaxModuleWidth, std::max(moduleWidth, rr.module.size()));
@@ -538,7 +538,7 @@ namespace {
                 const auto idx = msgIndices[c];
                 double value = row->perMsg[idx];
                 if (row->isEsp) value = 0.0;
-                const auto cell = FormatMs(value);
+                const auto cell = FormatSeconds(value);
                 rr.perMsg.push_back(cell);
                 if (c < msgWidths.size()) msgWidths[c] = std::max(msgWidths[c], cell.size());
             }
@@ -551,7 +551,7 @@ namespace {
             << std::setw(static_cast<int>(authorWidth)) << "author" << "  "
             << std::setw(static_cast<int>(versionWidth)) << "version" << "  "
             << std::setw(static_cast<int>(typeWidth)) << "type" << "  "
-            << std::right << std::setw(static_cast<int>(totalWidth)) << "total_ms";
+            << std::right << std::setw(static_cast<int>(totalWidth)) << "total_s";
         for (std::size_t i = 0; i < msgHeaders.size(); ++i) {
             out << "  " << std::setw(static_cast<int>(msgWidths[i])) << msgHeaders[i];
         }
