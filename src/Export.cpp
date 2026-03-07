@@ -37,6 +37,13 @@ namespace {
         std::string gpuList;
     };
 
+    struct ExportTotals {
+        std::array<double, SKSE::MessagingInterface::kTotal> colTotals{};
+        double espExtra{0.0};
+        double grandTotal{0.0};
+        std::size_t rowCount{0};
+    };
+
     const char* PlaceholderText() {
         return Localization::PlaceholderEmpty.empty() ? "-" : Localization::PlaceholderEmpty.c_str();
     }
@@ -309,10 +316,29 @@ namespace {
         return rows;
     }
 
+    ExportTotals BuildExportTotals(const std::vector<ExportRow>& rows) {
+        ExportTotals totals;
+        totals.rowCount = rows.size();
+
+        for (const auto& row : rows) {
+            if (row.isEsp) totals.espExtra += row.totalMs;
+            for (std::size_t i = 0; i < row.perMsg.size(); ++i) {
+                double value = row.perMsg[i];
+                if (row.isEsp || value < 1.0) value = 0.0;
+                totals.colTotals[i] += value;
+            }
+        }
+
+        for (const double value : totals.colTotals) totals.grandTotal += value;
+        totals.grandTotal += totals.espExtra;
+        return totals;
+    }
+
     bool WriteCsv(const std::filesystem::path& path, const SummaryMetrics& summary, const SystemInfo& systemInfo,
                   const std::vector<std::string_view>& messageNames, const std::vector<ExportRow>& rows) {
         std::ofstream out(path, std::ios::trunc);
         if (!out.is_open()) return false;
+        const auto totals = BuildExportTotals(rows);
 
         out << "summary_key,summary_ms\n";
         out << "skse_init_time_heuristic_ms," << FormatMs(summary.skseInitMs) << "\n";
@@ -330,6 +356,16 @@ namespace {
 
         out << "module,author,version,type,total_ms";
         for (const auto& name : messageNames) out << ',' << EscapeCsv(std::string(name) + "_ms");
+        out << "\n";
+
+        out << EscapeCsv(fmt::format("{} ({})", Localization::TotalsRowLabel, totals.rowCount)) << ',';
+        out << EscapeCsv(PlaceholderText()) << ',';
+        out << EscapeCsv(PlaceholderText()) << ',';
+        out << EscapeCsv(PlaceholderText()) << ',';
+        out << FormatMs(totals.grandTotal);
+        for (std::size_t i = 0; i < messageNames.size(); ++i) {
+            out << ',' << FormatMs(totals.colTotals[i]);
+        }
         out << "\n";
 
         for (const auto& row : rows) {
@@ -352,6 +388,7 @@ namespace {
                   const std::vector<std::string_view>& messageNames, const std::vector<ExportRow>& rows) {
         std::ofstream out(path, std::ios::trunc);
         if (!out.is_open()) return false;
+        const auto totals = BuildExportTotals(rows);
 
         std::vector<const ExportRow*> sortedRows;
         sortedRows.reserve(rows.size());
@@ -401,6 +438,31 @@ namespace {
 
         std::vector<RenderedRow> rendered;
         rendered.reserve(sortedRows.size());
+
+        {
+            RenderedRow rr;
+            rr.module = Ellipsize(fmt::format("{} ({})", Localization::TotalsRowLabel, totals.rowCount),
+                                  kMaxModuleWidth);
+            rr.author = PlaceholderText();
+            rr.version = PlaceholderText();
+            rr.type = PlaceholderText();
+            rr.total = FormatMs(totals.grandTotal);
+            rr.perMsg.reserve(messageNames.size());
+
+            moduleWidth = std::min(kMaxModuleWidth, std::max(moduleWidth, rr.module.size()));
+            authorWidth = std::min(kMaxAuthorWidth, std::max(authorWidth, rr.author.size()));
+            versionWidth = std::min(kMaxVersionWidth, std::max(versionWidth, rr.version.size()));
+            typeWidth = std::max(typeWidth, rr.type.size());
+            totalWidth = std::max(totalWidth, rr.total.size());
+
+            for (std::size_t i = 0; i < messageNames.size(); ++i) {
+                const auto cell = FormatMs(totals.colTotals[i]);
+                rr.perMsg.push_back(cell);
+                if (i < msgWidths.size()) msgWidths[i] = std::max(msgWidths[i], cell.size());
+            }
+
+            rendered.push_back(std::move(rr));
+        }
 
         for (const auto* row : sortedRows) {
             RenderedRow rr;
