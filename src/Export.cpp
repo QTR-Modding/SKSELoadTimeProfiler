@@ -319,10 +319,21 @@ namespace {
     std::vector<std::size_t> BuildExportMessageIndices(const std::vector<std::string_view>& messageNames) {
         std::vector<std::size_t> indices;
         indices.reserve(messageNames.size());
+        std::optional<std::size_t> dataLoadedIdx;
+
         for (std::size_t i = 0; i < messageNames.size(); ++i) {
             if (messageNames[i].find("Game") != std::string_view::npos) continue;
+            if (messageNames[i] == "DataLoaded") {
+                dataLoadedIdx = i;
+                continue;
+            }
             indices.push_back(i);
         }
+
+        if (dataLoadedIdx) {
+            indices.insert(indices.begin(), *dataLoadedIdx);
+        }
+
         return indices;
     }
 
