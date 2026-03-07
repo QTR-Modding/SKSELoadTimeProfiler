@@ -316,13 +316,23 @@ namespace {
         return rows;
     }
 
-    ExportTotals BuildExportTotals(const std::vector<ExportRow>& rows) {
+    std::vector<std::size_t> BuildExportMessageIndices(const std::vector<std::string_view>& messageNames) {
+        std::vector<std::size_t> indices;
+        indices.reserve(messageNames.size());
+        for (std::size_t i = 0; i < messageNames.size(); ++i) {
+            if (messageNames[i].find("Game") != std::string_view::npos) continue;
+            indices.push_back(i);
+        }
+        return indices;
+    }
+
+    ExportTotals BuildExportTotals(const std::vector<ExportRow>& rows, const std::vector<std::size_t>& msgIndices) {
         ExportTotals totals;
         totals.rowCount = rows.size();
 
         for (const auto& row : rows) {
             if (row.isEsp) totals.espExtra += row.totalMs;
-            for (std::size_t i = 0; i < row.perMsg.size(); ++i) {
+            for (const auto i : msgIndices) {
                 double value = row.perMsg[i];
                 if (row.isEsp || value < 1.0) value = 0.0;
                 totals.colTotals[i] += value;
@@ -338,7 +348,8 @@ namespace {
                   const std::vector<std::string_view>& messageNames, const std::vector<ExportRow>& rows) {
         std::ofstream out(path, std::ios::trunc);
         if (!out.is_open()) return false;
-        const auto totals = BuildExportTotals(rows);
+        const auto msgIndices = BuildExportMessageIndices(messageNames);
+        const auto totals = BuildExportTotals(rows, msgIndices);
 
         out << "summary_key,summary_ms\n";
         out << "skse_init_time_heuristic_ms," << FormatMs(summary.skseInitMs) << "\n";
@@ -355,7 +366,7 @@ namespace {
         out << "gpu_list," << EscapeCsv(systemInfo.gpuList) << "\n\n";
 
         out << "module,author,version,type,total_ms";
-        for (const auto& name : messageNames) out << ',' << EscapeCsv(std::string(name) + "_ms");
+        for (const auto idx : msgIndices) out << ',' << EscapeCsv(std::string(messageNames[idx]) + "_ms");
         out << "\n";
 
         out << EscapeCsv(fmt::format("{} ({})", Localization::TotalsRowLabel, totals.rowCount)) << ',';
@@ -363,8 +374,8 @@ namespace {
         out << EscapeCsv(PlaceholderText()) << ',';
         out << EscapeCsv(PlaceholderText()) << ',';
         out << FormatMs(totals.grandTotal);
-        for (std::size_t i = 0; i < messageNames.size(); ++i) {
-            out << ',' << FormatMs(totals.colTotals[i]);
+        for (const auto idx : msgIndices) {
+            out << ',' << FormatMs(totals.colTotals[idx]);
         }
         out << "\n";
 
@@ -374,7 +385,8 @@ namespace {
             out << EscapeCsv(row.version) << ',';
             out << (row.isEsp ? "ESP" : "DLL") << ',';
             out << FormatMs(row.totalMs);
-            for (double value : row.perMsg) {
+            for (const auto idx : msgIndices) {
+                double value = row.perMsg[idx];
                 if (row.isEsp) value = 0.0;
                 out << ',' << FormatMs(value);
             }
@@ -388,7 +400,8 @@ namespace {
                   const std::vector<std::string_view>& messageNames, const std::vector<ExportRow>& rows) {
         std::ofstream out(path, std::ios::trunc);
         if (!out.is_open()) return false;
-        const auto totals = BuildExportTotals(rows);
+        const auto msgIndices = BuildExportMessageIndices(messageNames);
+        const auto totals = BuildExportTotals(rows, msgIndices);
 
         std::vector<const ExportRow*> sortedRows;
         sortedRows.reserve(rows.size());
@@ -416,8 +429,8 @@ namespace {
         constexpr std::size_t kMaxVersionWidth = 16;
 
         std::vector<std::string> msgHeaders;
-        msgHeaders.reserve(messageNames.size());
-        for (const auto& name : messageNames) msgHeaders.push_back(std::string(name) + "_ms");
+        msgHeaders.reserve(msgIndices.size());
+        for (const auto idx : msgIndices) msgHeaders.push_back(std::string(messageNames[idx]) + "_ms");
 
         std::size_t moduleWidth = std::string_view("module").size();
         std::size_t authorWidth = std::string_view("author").size();
@@ -447,7 +460,7 @@ namespace {
             rr.version = PlaceholderText();
             rr.type = PlaceholderText();
             rr.total = FormatMs(totals.grandTotal);
-            rr.perMsg.reserve(messageNames.size());
+            rr.perMsg.reserve(msgIndices.size());
 
             moduleWidth = std::min(kMaxModuleWidth, std::max(moduleWidth, rr.module.size()));
             authorWidth = std::min(kMaxAuthorWidth, std::max(authorWidth, rr.author.size()));
@@ -455,10 +468,11 @@ namespace {
             typeWidth = std::max(typeWidth, rr.type.size());
             totalWidth = std::max(totalWidth, rr.total.size());
 
-            for (std::size_t i = 0; i < messageNames.size(); ++i) {
-                const auto cell = FormatMs(totals.colTotals[i]);
+            for (std::size_t c = 0; c < msgIndices.size(); ++c) {
+                const auto idx = msgIndices[c];
+                const auto cell = FormatMs(totals.colTotals[idx]);
                 rr.perMsg.push_back(cell);
-                if (i < msgWidths.size()) msgWidths[i] = std::max(msgWidths[i], cell.size());
+                if (c < msgWidths.size()) msgWidths[c] = std::max(msgWidths[c], cell.size());
             }
 
             rendered.push_back(std::move(rr));
@@ -471,7 +485,7 @@ namespace {
             rr.version = Ellipsize(row->version, kMaxVersionWidth);
             rr.type = row->isEsp ? "ESP" : "DLL";
             rr.total = FormatMs(row->totalMs);
-            rr.perMsg.reserve(row->perMsg.size());
+            rr.perMsg.reserve(msgIndices.size());
 
             moduleWidth = std::min(kMaxModuleWidth, std::max(moduleWidth, rr.module.size()));
             authorWidth = std::min(kMaxAuthorWidth, std::max(authorWidth, rr.author.size()));
@@ -479,12 +493,13 @@ namespace {
             typeWidth = std::max(typeWidth, rr.type.size());
             totalWidth = std::max(totalWidth, rr.total.size());
 
-            for (std::size_t i = 0; i < row->perMsg.size(); ++i) {
-                double value = row->perMsg[i];
+            for (std::size_t c = 0; c < msgIndices.size(); ++c) {
+                const auto idx = msgIndices[c];
+                double value = row->perMsg[idx];
                 if (row->isEsp) value = 0.0;
                 const auto cell = FormatMs(value);
                 rr.perMsg.push_back(cell);
-                if (i < msgWidths.size()) msgWidths[i] = std::max(msgWidths[i], cell.size());
+                if (c < msgWidths.size()) msgWidths[c] = std::max(msgWidths[c], cell.size());
             }
 
             rendered.push_back(std::move(rr));
