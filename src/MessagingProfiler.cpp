@@ -17,6 +17,18 @@ namespace {
         const auto diffMs = static_cast<double>(last - first) / 1'000'000.0;
         MCP::loadTimeMs.store(diffMs, std::memory_order_relaxed);
     }
+
+    long long NowSteadyNs() {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::steady_clock::now().time_since_epoch())
+            .count();
+    }
+
+    void UpdateMax(std::atomic<uint64_t>& target, const uint64_t value) {
+        auto prev = target.load(std::memory_order_relaxed);
+        while (value > prev && !target.compare_exchange_weak(prev, value, std::memory_order_relaxed)) {
+        }
+    }
 }
 
 std::vector<MessagingProfiler::TaggedRow> MessagingProfiler::GetTaggedRows() {
@@ -24,7 +36,7 @@ std::vector<MessagingProfiler::TaggedRow> MessagingProfiler::GetTaggedRows() {
     for (auto names = GetModuleRowsSnapshot(); auto& r : names) {
         TaggedRow tr;
         tr.module = r.module;
-        tr.kind = (r.kind == SourceKind::DLL ? SourceKind::DLL : SourceKind::ESP);
+        tr.kind = r.kind;
         tr.totalMs = (r.kind == SourceKind::ESP)
                          ? r.espTotalMs
                          : std::accumulate(r.avgMs.begin(), r.avgMs.end(), 0.0);
@@ -89,32 +101,6 @@ const char* MessagingProfiler::MessageTypeName(const std::uint32_t t) {
     }
 }
 
-std::vector<std::pair<std::string, std::array<double, SKSE::MessagingInterface::kTotal>>> MessagingProfiler::
-GetAverageDurations() {
-    std::vector<std::pair<std::string, std::array<double, SKSE::MessagingInterface::kTotal>>> rows;
-    for (auto& r : GetModuleRowsSnapshot())
-        if (r.kind == SourceKind::DLL)
-            rows.emplace_back(r.module, r.avgMs);
-        else
-            rows.emplace_back(r.module, r.avgMs);
-    return rows;
-}
-
-std::array<double, SKSE::MessagingInterface::kTotal> MessagingProfiler::GetTotalsAvgMs() {
-    std::array<double, SKSE::MessagingInterface::kTotal> result{};
-    const auto limit = std::min<std::size_t>(g_nextIndex.load(std::memory_order_relaxed), MAX_WRAPPERS);
-    for (std::uint32_t t = 0; t < SKSE::MessagingInterface::kTotal; ++t) {
-        uint64_t totNs = 0, cnt = 0;
-        for (std::size_t i = 0; i < limit; ++i) {
-            auto& e = g_entries[i];
-            totNs += e.perMessage[t].totalNs.load(std::memory_order_relaxed);
-            cnt += e.perMessage[t].count.load(std::memory_order_relaxed);
-        }
-        result[t] = cnt ? (static_cast<double>(totNs) / cnt) / 1'000'000.0 : 0.0;
-    }
-    return result;
-}
-
 std::string MessagingProfiler::ModuleNameFromAddress(const void* addr) {
     if (!addr) return "<addr-null>";
     HMODULE hMod = nullptr;
@@ -139,9 +125,7 @@ void MessagingProfiler::WrapperThunk(CallbackEntry* entry, SKSE::MessagingInterf
     {
         std::lock_guard lk(g_currentMutex);
         g_currentModule = entry->pluginName;
-        g_currentStartNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                              std::chrono::steady_clock::now().time_since_epoch())
-                              .count();
+        g_currentStartNs = NowSteadyNs();
     }
     const auto start = std::chrono::high_resolution_clock::now();
     entry->original(msg);
@@ -155,16 +139,12 @@ void MessagingProfiler::WrapperThunk(CallbackEntry* entry, SKSE::MessagingInterf
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
     entry->count.fetch_add(1, std::memory_order_relaxed);
     entry->totalNs.fetch_add(ns64, std::memory_order_relaxed);
-    auto prevMax = entry->maxNs.load(std::memory_order_relaxed);
-    while (ns64 > prevMax && !entry->maxNs.compare_exchange_weak(prevMax, ns64, std::memory_order_relaxed)) {
-    }
+    UpdateMax(entry->maxNs, ns64);
     if (msg && msg->type < SKSE::MessagingInterface::kTotal) {
         auto& ms = entry->perMessage[msg->type];
         ms.count.fetch_add(1, std::memory_order_relaxed);
         ms.totalNs.fetch_add(ns64, std::memory_order_relaxed);
-        auto mPrev = ms.maxNs.load(std::memory_order_relaxed);
-        while (ns64 > mPrev && !ms.maxNs.compare_exchange_weak(mPrev, ns64, std::memory_order_relaxed)) {
-        }
+        UpdateMax(ms.maxNs, ns64);
     }
 }
 
@@ -239,9 +219,7 @@ bool MessagingProfiler::Hook_RegisterListener(const SKSE::PluginHandle handle, c
 
     // SKSEPluginLoad heuristic
     if (!g_regSpanFrozen.load(std::memory_order_relaxed)) {
-        const auto nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                std::chrono::steady_clock::now().time_since_epoch())
-            .count();
+        const auto nowNs = NowSteadyNs();
         auto expected = -1LL;
         g_firstRegisterNs.compare_exchange_strong(expected, nowNs, std::memory_order_relaxed);
         g_lastRegisterNs.store(nowNs, std::memory_order_relaxed);
@@ -305,17 +283,13 @@ std::string MessagingProfiler::GetCurrentCallbackModule() {
 double MessagingProfiler::GetCurrentCallbackElapsedMs() {
     std::lock_guard lk(g_currentMutex);
     if (g_currentModule.empty() || g_currentStartNs < 0) return -1.0;
-    const auto nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                           std::chrono::steady_clock::now().time_since_epoch())
-                           .count();
+    const auto nowNs = NowSteadyNs();
     if (nowNs < g_currentStartNs) return -1.0;
     return static_cast<double>(nowNs - g_currentStartNs) / 1'000'000.0;
 }
 
 void MessagingProfiler::SetRegisterSpanStartNow() {
-    const auto nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
-            std::chrono::steady_clock::now().time_since_epoch())
-        .count();
+    const auto nowNs = NowSteadyNs();
     auto expected = g_firstRegisterNs.load(std::memory_order_relaxed);
     while (expected < 0 && !g_firstRegisterNs.compare_exchange_weak(expected, nowNs, std::memory_order_relaxed)) {
     }
@@ -326,10 +300,4 @@ std::vector<std::string_view> MessagingProfiler::GetMessageTypeNames() {
     names.reserve(SKSE::MessagingInterface::kTotal);
     for (std::uint32_t t = 0; t < SKSE::MessagingInterface::kTotal; ++t) names.emplace_back(MessageTypeName(t));
     return names;
-}
-
-std::vector<MessagingProfiler::AverageRow> MessagingProfiler::GetAverageRows() {
-    std::vector<AverageRow> rows;
-    for (const auto& r : GetModuleRowsSnapshot()) rows.push_back({r.module, r.avgMs, r.kind, r.espTotalMs});
-    return rows;
 }

@@ -1,18 +1,6 @@
 #pragma once
-#include "SKSEMCP/SKSEMenuFramework.hpp"
 
 void HelpMarker(const char* label, const char* desc);
-
-namespace MCP::UI {
-    inline void ReadOnlyField(const char* label, const std::string& value, const char* id) {
-        if (label && *label) {
-            ImGuiMCP::ImGui::TextUnformatted(label);
-            ImGuiMCP::ImGui::SameLine();
-        }
-        std::string buffer = value;
-        ImGuiMCP::ImGui::InputText(id, buffer.data(), buffer.size() + 1, ImGuiMCP::ImGuiInputTextFlags_ReadOnly);
-    }
-}
 
 namespace MCP {
     inline double profilerWarnMs = 800.0;

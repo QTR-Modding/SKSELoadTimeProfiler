@@ -56,8 +56,6 @@ namespace MessagingProfiler {
 
     // Backend for UI
     const char* MessageTypeName(std::uint32_t t);
-    std::vector<std::pair<std::string, std::array<double, SKSE::MessagingInterface::kTotal>>> GetAverageDurations();
-    std::array<double, SKSE::MessagingInterface::kTotal> GetTotalsAvgMs();
 
     std::string ModuleNameFromAddress(const void* addr);
 
@@ -77,15 +75,5 @@ namespace MessagingProfiler {
     std::string GetCurrentCallbackModule();
     double GetCurrentCallbackElapsedMs();
     void SetRegisterSpanStartNow();
-
     std::vector<std::string_view> GetMessageTypeNames();
-
-    struct AverageRow {
-        std::string module;
-        std::array<double, SKSE::MessagingInterface::kTotal> avg;
-        SourceKind kind;
-        double espTotal;
-    };
-
-    std::vector<AverageRow> GetAverageRows();
 }

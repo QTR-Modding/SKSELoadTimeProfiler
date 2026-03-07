@@ -17,7 +17,7 @@ namespace {
 
     double GetPluginVersion(RE::TESFile* file) {
         if (!file) return -1.0;
-        return static_cast<double>(file->version);
+        return file->version;
     }
 
     template <class Fn, class... Args>
