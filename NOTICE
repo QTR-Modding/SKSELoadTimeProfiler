@@ -1,7 +1,9 @@
 SKSE Load Time Profiler
 Copyright (C) 2026 A. Ege Yilmaz
 
-SPDX-License-Identifier: GPL-3.0-or-later
+This project is licensed under the GNU General Public License, version 3, or
+(at your option) any later version, with additional permissions.
 
-This project is licensed under the GNU General Public License, version 3, or (at your option) any later version.
-See the LICENSE file for the full license text.
+See:
+- LICENSE        for the full GPL license text
+- EXCEPTIONS.md  for the Skyrim modding exception and GPLv3 section 7 linking exception

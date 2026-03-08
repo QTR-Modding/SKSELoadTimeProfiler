@@ -11,6 +11,10 @@ Automatically imports:
 - [SKSE Menu Framework](https://www.nexusmods.com/skyrimspecialedition/mods/120352) by Thiago099
 
 #### LICENSE
-This project is licensed under the GNU General Public License v3.0 or later (`GPL-3.0-or-later`).
-See the `LICENSE` file for details.
-See also `NOTICE` for project-specific licensing declaration.
+This project is licensed under the GNU General Public License v3.0 or later (`GPL-3.0-or-later`)
+with a Skyrim modding exception and a GPLv3 section 7 linking exception.
+
+See:
+- `LICENSE` for the GPL text
+- `EXCEPTIONS.md` for the project-specific additional permissions
+- `NOTICE` for the project licensing notice
