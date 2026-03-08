@@ -422,7 +422,7 @@ namespace {
             out << EscapeCsv(row.module) << ',';
             out << EscapeCsv(row.author) << ',';
             out << EscapeCsv(row.version) << ',';
-            out << (row.isEsp ? "ESP" : "DLL") << ',';
+            out << (row.isEsp ? Localization::TypeEsp : Localization::TypeDll) << ',';
             out << FormatSeconds(row.totalMs);
             for (const auto idx : msgIndices) {
                 double value = row.perMsg[idx];
@@ -449,7 +449,7 @@ namespace {
             return a->totalMs > b->totalMs;
         });
 
-        out << "Summary\n";
+        out << Localization::Summary << "\n";
         out << "skse_init_time_heuristic_s: " << FormatSeconds(summary.skseInitMs) << "\n";
         out << "total_dll_time_s: " << FormatSeconds(summary.totalDllMs) << "\n";
         out << "total_esp_time_s: " << FormatSeconds(summary.totalEspMs) << "\n";
@@ -524,7 +524,7 @@ namespace {
             rr.module = Ellipsize(row->module, kMaxModuleWidth);
             rr.author = Ellipsize(row->author, kMaxAuthorWidth);
             rr.version = Ellipsize(row->version, kMaxVersionWidth);
-            rr.type = row->isEsp ? "ESP" : "DLL";
+            rr.type = row->isEsp ? Localization::TypeEsp : Localization::TypeDll;
             rr.total = FormatSeconds(row->totalMs);
             rr.perMsg.reserve(msgIndices.size());
 

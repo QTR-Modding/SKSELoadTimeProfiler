@@ -28,8 +28,6 @@
   "$ltpExportButton": "Export",
   "$ltpExportStatusSuccess": "Exported to %s",
   "$ltpExportStatusFailed": "Export failed",
-  "$ltpFilterDll": "DLL",
-  "$ltpFilterEsp": "ESP",
   "$ltpTypeDll": "DLL",
   "$ltpTypeEsp": "ESP",
   "$ltpNoMessageTypesSelected": "No message types selected.",

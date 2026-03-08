@@ -65,8 +65,6 @@ void Localization::Load() {
     ExportButton = GetOrWarn(doc, "$ltpExportButton");
     ExportStatusSuccess = GetOrWarn(doc, "$ltpExportStatusSuccess");
     ExportStatusFailed = GetOrWarn(doc, "$ltpExportStatusFailed");
-    FilterDll = GetOrWarn(doc, "$ltpFilterDll");
-    FilterEsp = GetOrWarn(doc, "$ltpFilterEsp");
     TypeDll = GetOrWarn(doc, "$ltpTypeDll");
     TypeEsp = GetOrWarn(doc, "$ltpTypeEsp");
     NoMessageTypesSelected = GetOrWarn(doc, "$ltpNoMessageTypesSelected");

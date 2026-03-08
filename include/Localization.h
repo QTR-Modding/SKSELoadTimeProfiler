@@ -30,8 +30,6 @@ namespace Localization {
     inline std::string ExportButton;
     inline std::string ExportStatusSuccess;
     inline std::string ExportStatusFailed;
-    inline std::string FilterDll;
-    inline std::string FilterEsp;
     inline std::string TypeDll;
     inline std::string TypeEsp;
     inline std::string NoMessageTypesSelected;

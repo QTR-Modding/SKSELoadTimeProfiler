@@ -190,7 +190,7 @@ namespace {
         ImGuiMCP::ImGui::SameLine();
 
         bool dll = showDllEntries;
-        const auto dllLabel = Localization::MakeLabel(Localization::FilterDll, "filter-dll");
+        const auto dllLabel = Localization::MakeLabel(Localization::TypeDll, "filter-dll");
         if (ImGuiMCP::ImGui::Checkbox(dllLabel.c_str(), &dll)) {
             showDllEntries = dll;
             Settings::Save();
@@ -198,7 +198,7 @@ namespace {
 
         ImGuiMCP::ImGui::SameLine();
         bool esp = showEspEntries;
-        const auto espLabel = Localization::MakeLabel(Localization::FilterEsp, "filter-esp");
+        const auto espLabel = Localization::MakeLabel(Localization::TypeEsp, "filter-esp");
         if (ImGuiMCP::ImGui::Checkbox(espLabel.c_str(), &esp)) {
             showEspEntries = esp;
             Settings::Save();
