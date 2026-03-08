@@ -1,1 +1,9 @@
-{"profiler_warn_ms":800.0,"profiler_crit_ms":2000.0,"show_dll_entries":true,"show_esp_entries":true,"show_seconds":true,"profiler_visible":["PostLoad","PostPostLoad","InputLoaded","DataLoaded"]}
+{
+  "profiler_warn_ms": 800.0,
+  "profiler_crit_ms": 2000.0,
+  "show_dll_entries": true,
+  "show_esp_entries": true,
+  "export": false,
+  "show_seconds": true,
+  "profiler_visible": [ "PostLoad", "PostPostLoad", "InputLoaded", "DataLoaded" ]
+}

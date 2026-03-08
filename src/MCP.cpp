@@ -15,7 +15,7 @@ void HelpMarker(const char* label, const char* desc) {
 
 void MCP::Register() {
     if (!SKSEMenuFramework::IsInstalled()) {
-        logger::error("SKSEMenuFramework is not installed.");
+        logger::info("SKSEMenuFramework is not installed.");
         return;
     }
     SKSEMenuFramework::SetSection(Localization::SectionUtilities);

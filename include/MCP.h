@@ -7,6 +7,7 @@ namespace MCP {
     inline double profilerCritMs = 2000.0;
     inline bool showDllEntries = true;
     inline bool showEspEntries = true;
+    inline bool autoExportWithMenuFramework = false;
     inline std::atomic loadTimeMs{-1.0};
 
     void Register();
