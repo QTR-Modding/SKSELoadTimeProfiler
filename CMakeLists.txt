@@ -1,5 +1,14 @@
-if(NOT DEFINED ENV{COMMONLIB_SSE_FOLDER})
-  message(FATAL_ERROR "Missing COMMONLIB_SSE_FOLDER environment variable")
+# Prefer the bundled submodule; fall back to COMMONLIB_SSE_FOLDER env var
+set(_COMMONLIB_SUBMODULE "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE")
+if(EXISTS "${_COMMONLIB_SUBMODULE}/CMakeLists.txt")
+    set(_COMMONLIB_FOLDER "${_COMMONLIB_SUBMODULE}")
+elseif(DEFINED ENV{COMMONLIB_SSE_FOLDER})
+    set(_COMMONLIB_FOLDER "$ENV{COMMONLIB_SSE_FOLDER}")
+else()
+    message(FATAL_ERROR
+        "CommonLibSSE not found. Either initialize the submodule:\n"
+        "  git submodule update --init --recursive extern/CommonLibSSE\n"
+        "or set the COMMONLIB_SSE_FOLDER environment variable.")
 endif()
 
 include(cmake/headerlist.cmake)
@@ -42,7 +51,7 @@ set(ENABLE_SKYRIM_AE ON CACHE BOOL " " FORCE)
 set(ENABLE_SKYRIM_VR ON CACHE BOOL " " FORCE)
 set(BUILD_TESTS OFF CACHE BOOL " " FORCE)
 
-add_subdirectory("$ENV{COMMONLIB_SSE_FOLDER}" ${CMAKE_CURRENT_BINARY_DIR}/_deps/clib-build)
+add_subdirectory("${_COMMONLIB_FOLDER}" ${CMAKE_CURRENT_BINARY_DIR}/_deps/clib-build)
 get_target_property(COMMONLIB_SRC_DIR CommonLibSSE SOURCE_DIR)
 
 find_path(SKSE_MCP_INCLUDE_DIRS "SKSEMCP/utils.hpp")
