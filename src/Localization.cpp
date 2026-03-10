@@ -63,6 +63,7 @@ void Localization::Load() {
     SearchHint = GetOrWarn(doc, "$ltpSearchHint");
     ExportFormatCsv = GetOrWarn(doc, "$ltpExportFormatCsv");
     ExportFormatTxt = GetOrWarn(doc, "$ltpExportFormatTxt");
+    ExportFormatJson = GetOrWarn(doc, "$ltpExportFormatJson");
     ExportButton = GetOrWarn(doc, "$ltpExportButton");
     ExportStatusSuccess = GetOrWarn(doc, "$ltpExportStatusSuccess");
     ExportStatusFailed = GetOrWarn(doc, "$ltpExportStatusFailed");

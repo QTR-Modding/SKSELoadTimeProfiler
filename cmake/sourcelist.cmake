@@ -10,4 +10,5 @@ set(sources ${sources}
 	src/Export.cpp
 	src/MessagingProfilerUI.cpp
 	src/MessagingProfiler.cpp
+	src/VRESLIntegration.cpp
 )

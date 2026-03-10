@@ -1,6 +1,7 @@
 #include "Settings.h"
 #include "MessagingProfiler.h"
 #include "MessagingProfilerUI.h"
+#include "Export.h"
 #include "rapidjson/document.h"
 #include "rapidjson/istreamwrapper.h"
 #include "rapidjson/stringbuffer.h"
@@ -31,6 +32,12 @@ void Settings::Load() {
         MCP::showEspEntries = doc["show_esp_entries"].GetBool();
     if (doc.HasMember("export") && doc["export"].IsBool())
         MCP::autoExportWithMenuFramework = doc["export"].GetBool();
+    if (doc.HasMember("export_format") && doc["export_format"].IsInt()) {
+        int fmt = doc["export_format"].GetInt();
+        const int maxFmt = static_cast<int>(Export::Format::Json);
+        if (fmt < 0 || fmt > maxFmt) fmt = 0;
+        MessagingProfilerUI::GetState().exportFormat = fmt;
+    }
     if (doc.HasMember("show_seconds") && doc["show_seconds"].IsBool())
         MessagingProfilerUI::GetState().showSeconds = doc["show_seconds"].GetBool();
     if (doc.HasMember("profiler_visible") && doc["profiler_visible"].IsArray()) {
@@ -63,6 +70,7 @@ void Settings::Save() {
     doc.AddMember("show_dll_entries", MCP::showDllEntries, a);
     doc.AddMember("show_esp_entries", MCP::showEspEntries, a);
     doc.AddMember("export", MCP::autoExportWithMenuFramework, a);
+    doc.AddMember("export_format", MessagingProfilerUI::GetState().exportFormat, a);
     doc.AddMember("show_seconds", MessagingProfilerUI::GetState().showSeconds, a);
     auto names = MessagingProfiler::GetMessageTypeNames();
     auto vis = MessagingProfilerUI::GetCurrentVisibility();

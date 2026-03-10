@@ -1,0 +1,49 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "user-base",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/<version>/bin/Hostx64/x64/cl.exe"
+            },
+            "environment": {
+                "COMMONLIB_SSE_FOLDER": "",
+                "SKYRIM_DIRECT_FOLDER": "",
+                "SKYRIM_VR_DIRECT_FOLDER": ""
+            }
+        },
+        {
+            "name": "user-release",
+            "inherits": ["release", "user-base"],
+            "displayName": "User Release"
+        },
+        {
+            "name": "user-debug",
+            "inherits": ["debug", "user-base"],
+            "displayName": "User Debug"
+        },
+        {
+            "name": "user-relwithdebinfo",
+            "inherits": ["base", "user-base"],
+            "displayName": "User RelWithDebInfo",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "user-release",
+            "configurePreset": "user-release"
+        },
+        {
+            "name": "user-debug",
+            "configurePreset": "user-debug"
+        },
+        {
+            "name": "user-relwithdebinfo",
+            "configurePreset": "user-relwithdebinfo"
+        }
+    ]
+}

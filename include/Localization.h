@@ -28,6 +28,7 @@ namespace Localization {
     inline std::string SearchHint;
     inline std::string ExportFormatCsv;
     inline std::string ExportFormatTxt;
+    inline std::string ExportFormatJson;
     inline std::string ExportButton;
     inline std::string ExportStatusSuccess;
     inline std::string ExportStatusFailed;

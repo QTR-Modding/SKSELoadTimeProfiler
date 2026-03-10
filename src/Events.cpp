@@ -42,10 +42,12 @@ RE::BSEventNotifyControl MainMenuOpenExportSink::ProcessEvent(const RE::MenuOpen
     std::string status;
     const bool csvOk = Export::WriteSnapshot(Export::Format::Csv, status);
     const bool txtOk = Export::WriteSnapshot(Export::Format::Txt, status);
-    if (csvOk && txtOk)
-        logger::info("[Export] Auto-generated CSV and TXT snapshots on Main Menu open");
+    const bool jsonOk = Export::WriteSnapshot(Export::Format::Json, status);
+    if (csvOk && txtOk && jsonOk)
+        logger::info("[Export] Auto-generated CSV{}/TXT{}/JSON{} snapshots on Main Menu open: {}",
+                     csvOk ? "" : " failed", txtOk ? "" : " failed", jsonOk ? "" : " failed", status);
     else
-        logger::warn("[Export] Auto-export incomplete on Main Menu open (csv={}, txt={})", csvOk, txtOk);
+        logger::warn("[Export] Auto-export incomplete on Main Menu open (csv={}, txt={}, json={})", csvOk, txtOk, jsonOk);
 
     return UnInstall();
 }

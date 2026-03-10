@@ -1,9 +1,13 @@
 #include "Export.h"
 #include "ESPProfiling.h"
 #include "Localization.h"
+#include "MCP.h"
 #include "MessagingProfiler.h"
 #include "MessagingProfilerUI.h"
 #include "Settings.h"
+#include "rapidjson/document.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
 #include <fmt/printf.h>
 
 namespace {
@@ -22,12 +26,16 @@ namespace {
         std::string version;
         bool isEsp{false};
         double totalMs{0.0};
+        double openMs{0.0};   // ESP only: file open phase (0 if not captured)
+        double closeMs{0.0};  // ESP only: file close phase (0 if not captured)
         std::array<double, SKSE::MessagingInterface::kTotal> perMsg{};
     };
 
     struct EspMeta {
         std::string author;
         double version{-1.0};
+        double openMs{0.0};
+        double closeMs{0.0};
     };
 
     struct SystemInfo {
@@ -54,6 +62,15 @@ namespace {
         if (valueMs < 0.0) return {};
         std::ostringstream os;
         os << std::fixed << std::setprecision(2) << (valueMs / 1000.0);
+        return os.str();
+    }
+
+    // For open/close phase durations which are sub-millisecond to low-millisecond —
+    // seconds format at 2dp would always display as 0.00.
+    std::string FormatMs(const double valueMs) {
+        if (valueMs <= 0.0) return "0.0";
+        std::ostringstream os;
+        os << std::fixed << std::setprecision(1) << valueMs;
         return os.str();
     }
 
@@ -114,7 +131,12 @@ namespace {
         auto outDir = Settings::GetConfigPath().parent_path();
         std::error_code ec;
         std::filesystem::create_directories(outDir, ec);
-        const char* ext = format == Export::Format::Txt ? ".txt" : ".csv";
+        const char* ext = ".csv";
+        if (format == Export::Format::Txt) {
+            ext = ".txt";
+        } else if (format == Export::Format::Json) {
+            ext = ".json";
+        }
         return outDir / ("LTP_summary_" + MakeTimestampForFile() + ext);
     }
 
@@ -271,7 +293,12 @@ namespace {
     std::unordered_map<std::string, EspMeta> BuildEspMetaMap() {
         std::unordered_map<std::string, EspMeta> out;
         for (const auto& entry : ESPProfiling::SnapshotEntries()) {
-            out[entry.name] = EspMeta{.author = entry.author, .version = entry.version};
+            out[entry.name] = EspMeta{
+                .author  = entry.author,
+                .version = entry.version,
+                .openMs  = static_cast<double>(entry.openNs)  / 1'000'000.0,
+                .closeMs = static_cast<double>(entry.closeNs) / 1'000'000.0,
+            };
         }
         return out;
     }
@@ -304,8 +331,10 @@ namespace {
             if (out.isEsp) {
                 auto it = espMeta.find(out.module);
                 if (it != espMeta.end()) {
-                    out.author = it->second.author.empty() ? PlaceholderText() : it->second.author;
+                    out.author  = it->second.author.empty() ? PlaceholderText() : it->second.author;
                     out.version = FormatVersion(it->second.version);
+                    out.openMs  = it->second.openMs;
+                    out.closeMs = it->second.closeMs;
                 } else {
                     out.author = PlaceholderText();
                     out.version = PlaceholderText();
@@ -359,6 +388,147 @@ namespace {
         return totals;
     }
 
+    // Writes a Chrome Trace Format JSON readable by Perfetto (ui.perfetto.dev),
+    // chrome://tracing, and speedscope. Each ESP plugin and DLL callback message type
+    // gets its own Perfetto track (tid). ESP events use real steady_clock timestamps
+    // when available, giving the actual load order and start offsets.
+    bool WriteJson(const std::filesystem::path& path, const SummaryMetrics& /*summary*/,
+                   const SystemInfo& /*systemInfo*/, const std::vector<std::string_view>& messageNames,
+                   const std::vector<ExportRow>& rows) {
+        std::ofstream out(path, std::ios::trunc);
+        if (!out.is_open()) return false;
+
+        const auto msgIndices = BuildExportMessageIndices(messageNames);
+        rapidjson::Document doc(rapidjson::kObjectType);
+        auto& alloc = doc.GetAllocator();
+        rapidjson::Value events(rapidjson::kArrayType);
+
+        auto addMeta = [&](int tid, std::string_view name, int sortIdx) {
+            rapidjson::Value tn(rapidjson::kObjectType);
+            tn.AddMember("name", rapidjson::StringRef("thread_name"), alloc);
+            tn.AddMember("ph",   rapidjson::StringRef("M"), alloc);
+            tn.AddMember("pid",  0, alloc);
+            tn.AddMember("tid",  tid, alloc);
+            rapidjson::Value args(rapidjson::kObjectType);
+            args.AddMember("name", rapidjson::Value(name.data(), static_cast<rapidjson::SizeType>(name.size()), alloc), alloc);
+            tn.AddMember("args", args, alloc);
+            events.PushBack(tn, alloc);
+
+            rapidjson::Value si(rapidjson::kObjectType);
+            si.AddMember("name", rapidjson::StringRef("thread_sort_index"), alloc);
+            si.AddMember("ph",   rapidjson::StringRef("M"), alloc);
+            si.AddMember("pid",  0, alloc);
+            si.AddMember("tid",  tid, alloc);
+            rapidjson::Value args2(rapidjson::kObjectType);
+            args2.AddMember("sort_index", sortIdx, alloc);
+            si.AddMember("args", args2, alloc);
+            events.PushBack(si, alloc);
+        };
+
+        auto addX = [&](const char* cat, std::string_view name, double tsUs, double durUs, int tid,
+                        std::string_view author, std::string_view version,
+                        double openMs = 0.0, double closeMs = 0.0) {
+            rapidjson::Value ev(rapidjson::kObjectType);
+            ev.AddMember("cat",  rapidjson::StringRef(cat), alloc);
+            ev.AddMember("name", rapidjson::Value(name.data(), static_cast<rapidjson::SizeType>(name.size()), alloc), alloc);
+            ev.AddMember("ph",   rapidjson::StringRef("X"), alloc);
+            ev.AddMember("ts",   tsUs, alloc);
+            ev.AddMember("dur",  std::max(durUs, 0.001), alloc);
+            ev.AddMember("pid",  0, alloc);
+            ev.AddMember("tid",  tid, alloc);
+            rapidjson::Value args(rapidjson::kObjectType);
+            args.AddMember("author",  rapidjson::Value(author.data(),  static_cast<rapidjson::SizeType>(author.size()),  alloc), alloc);
+            args.AddMember("version", rapidjson::Value(version.data(), static_cast<rapidjson::SizeType>(version.size()), alloc), alloc);
+            if (openMs  > 0.0) args.AddMember("open_ms",  openMs,  alloc);
+            if (closeMs > 0.0) args.AddMember("close_ms", closeMs, alloc);
+            ev.AddMember("args", args, alloc);
+            events.PushBack(ev, alloc);
+        };
+
+        // --- ESP track (tid=1): real load order and timestamps via ESPProfiling::Entry ---
+        std::vector<const ExportRow*> espRows;
+        for (const auto& r : rows) if (r.isEsp) espRows.push_back(&r);
+
+        if (!espRows.empty()) {
+            addMeta(1, "ESP Loading", 0);
+
+            const auto espEntries = ESPProfiling::SnapshotEntries();
+            std::unordered_map<std::string, const ESPProfiling::Entry*> entryByName;
+            entryByName.reserve(espEntries.size());
+            for (const auto& e : espEntries) entryByName[e.name] = &e;
+
+            // Sort by real load order (insertion sequence), fall back to name
+            std::ranges::sort(espRows, [&](const ExportRow* a, const ExportRow* b) {
+                const auto ia = entryByName.find(a->module);
+                const auto ib = entryByName.find(b->module);
+                const uint64_t oa = ia != entryByName.end() ? ia->second->order : UINT64_MAX;
+                const uint64_t ob = ib != entryByName.end() ? ib->second->order : UINT64_MAX;
+                return oa != ob ? oa < ob : a->module < b->module;
+            });
+
+            // Find the earliest startNs as the trace origin
+            uint64_t refNs = UINT64_MAX;
+            for (const auto* r : espRows) {
+                const auto it = entryByName.find(r->module);
+                if (it != entryByName.end() && it->second->startNs > 0)
+                    refNs = std::min(refNs, it->second->startNs);
+            }
+            const bool hasReal = (refNs != UINT64_MAX);
+
+            // prev_end tracks the end of the last placed event so we never emit
+            // a start timestamp that overlaps a preceding slice (Perfetto drops
+            // any slice whose ts < prior slice's ts+dur on the same tid).
+            double prev_end = 0.0;
+            for (const auto* r : espRows) {
+                const double durUs = std::max(r->totalMs * 1000.0, 0.001);
+                double tsUs = prev_end;
+                if (hasReal) {
+                    const auto it = entryByName.find(r->module);
+                    if (it != entryByName.end() && it->second->startNs >= refNs) {
+                        const double realTs = static_cast<double>(it->second->startNs - refNs) / 1000.0;
+                        // Clamp forward only: never place a slice before the previous one ends.
+                        tsUs = std::max(realTs, prev_end);
+                    }
+                }
+                addX("ESP", r->module, tsUs, durUs, 1, r->author, r->version, r->openMs, r->closeMs);
+                prev_end = tsUs + durUs;
+            }
+        }
+
+        // --- DLL tracks (tid=10+): one Perfetto track per SKSE message type ---
+        for (std::size_t ci = 0; ci < msgIndices.size(); ++ci) {
+            const auto idx = msgIndices[ci];
+            std::vector<const ExportRow*> dllRows;
+            for (const auto& r : rows)
+                if (!r.isEsp && r.perMsg[idx] >= 0.001) dllRows.push_back(&r);
+            if (dllRows.empty()) continue;
+
+            std::ranges::sort(dllRows, [idx](const ExportRow* a, const ExportRow* b) {
+                return a->perMsg[idx] > b->perMsg[idx];
+            });
+
+            const int tid = 10 + static_cast<int>(ci);
+            const std::string trackName = "SKSE: " + std::string(messageNames[idx]);
+            addMeta(tid, trackName, 1 + static_cast<int>(ci));
+
+            double tsUs = 0.0;
+            for (const auto* r : dllRows) {
+                const double durUs = std::max(r->perMsg[idx] * 1000.0, 0.001);
+                addX("DLL", r->module, tsUs, durUs, tid, r->author, r->version);
+                tsUs += durUs;  // durUs already clamped, matches what addX emits
+            }
+        }
+
+        doc.AddMember("traceEvents",     events, alloc);
+        doc.AddMember("displayTimeUnit", rapidjson::StringRef("ms"), alloc);
+
+        rapidjson::StringBuffer sb;
+        rapidjson::Writer wr(sb);
+        doc.Accept(wr);
+        out << sb.GetString();
+        return true;
+    }
+
     bool WriteCsv(const std::filesystem::path& path, const SummaryMetrics& summary, const SystemInfo& systemInfo,
                   const std::vector<std::string_view>& messageNames, const std::vector<ExportRow>& rows) {
         std::ofstream out(path, std::ios::trunc);
@@ -410,7 +580,7 @@ namespace {
             << EscapeCsv(Localization::Version) << ',' << EscapeCsv(Localization::ColumnType)
             << ',' << EscapeCsv(Localization::TotalSecondsLabel);
         for (const auto idx : msgIndices) out << ',' << EscapeCsv(Localization::MessageTypeLabel(idx));
-        out << "\n";
+        out << ",open_ms,close_ms\n";
 
         out << EscapeCsv(fmt::format("{} ({})", Localization::TotalsRowLabel, totals.rowCount)) << ',';
         out << EscapeCsv(PlaceholderText()) << ',';
@@ -420,7 +590,7 @@ namespace {
         for (const auto idx : msgIndices) {
             out << ',' << FormatSeconds(totals.colTotals[idx]);
         }
-        out << "\n";
+        out << ",,\n";
 
         for (const auto& row : rows) {
             out << EscapeCsv(row.module) << ',';
@@ -432,6 +602,11 @@ namespace {
                 double value = row.perMsg[idx];
                 if (row.isEsp) value = 0.0;
                 out << ',' << FormatSeconds(value);
+            }
+            if (row.isEsp) {
+                out << ',' << FormatMs(row.openMs) << ',' << FormatMs(row.closeMs);
+            } else {
+                out << ",,";
             }
             out << "\n";
         }
@@ -492,6 +667,7 @@ namespace {
             std::string type;
             std::string total;
             std::vector<std::string> perMsg;
+            std::string annotation;  // e.g. "  (open: 0.012s, close: 0.001s)" — appended after last col
         };
 
         std::vector<RenderedRow> rendered;
@@ -531,6 +707,14 @@ namespace {
             rr.type = row->isEsp ? Localization::TypeEsp : Localization::TypeDll;
             rr.total = FormatSeconds(row->totalMs);
             rr.perMsg.reserve(msgIndices.size());
+            if (row->isEsp && (row->openMs > 0.0 || row->closeMs > 0.0)) {
+                std::string ann = "  (";
+                if (row->openMs  > 0.0) ann += "open: "  + FormatMs(row->openMs)  + "ms";
+                if (row->openMs  > 0.0 && row->closeMs > 0.0) ann += ", ";
+                if (row->closeMs > 0.0) ann += "close: " + FormatMs(row->closeMs) + "ms";
+                ann += ")";
+                rr.annotation = std::move(ann);
+            }
 
             moduleWidth = std::min(kMaxModuleWidth, std::max(moduleWidth, rr.module.size()));
             authorWidth = std::min(kMaxAuthorWidth, std::max(authorWidth, rr.author.size()));
@@ -579,7 +763,7 @@ namespace {
             for (std::size_t i = 0; i < rr.perMsg.size() && i < msgWidths.size(); ++i) {
                 out << "  " << std::setw(static_cast<int>(msgWidths[i])) << rr.perMsg[i];
             }
-            out << "\n";
+            out << rr.annotation << "\n";
         }
 
         return true;
@@ -606,9 +790,11 @@ bool Export::WriteSnapshot(const Format format, std::string& statusMessage) {
     const auto messageNames = MessagingProfiler::GetMessageTypeNames();
     const auto path = BuildExportPath(format);
 
-    const bool ok = format == Format::Txt
+    const bool ok = (format == Format::Txt)
                         ? WriteTxt(path, summary, systemInfo, messageNames, exportRows)
-                        : WriteCsv(path, summary, systemInfo, messageNames, exportRows);
+                        : (format == Format::Json)
+                            ? WriteJson(path, summary, systemInfo, messageNames, exportRows)
+                            : WriteCsv(path, summary, systemInfo, messageNames, exportRows);
 
     if (ok) {
         statusMessage = BuildSuccessStatus(path);
