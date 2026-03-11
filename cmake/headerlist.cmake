@@ -11,4 +11,5 @@ set(headers ${headers}
 	include/Localization.h
 	include/Logger.h
 	include/MessagingProfiler.h
+	include/VRESLIntegration.h
 )

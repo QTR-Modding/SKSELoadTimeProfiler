@@ -20,4 +20,13 @@ function(automaticGameFolderOutput wildlander_output steam_owrt_output steam_mod
         copyOutputs("$ENV{LORERIM3_MODS_FOLDER}/${PRODUCT_NAME}${PROJECT_SUFFIX}")
     endif()
 
+    # Direct deployment: copy straight to Data/SKSE/Plugins/ without a mod-name subfolder.
+    # Set SKYRIM_DIRECT_FOLDER / SKYRIM_VR_DIRECT_FOLDER to the game's Data directory.
+    if(DEFINED ENV{SKYRIM_DIRECT_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_DIRECT_FOLDER}")
+        copyOutputs("$ENV{SKYRIM_DIRECT_FOLDER}")
+    endif()
+    if(DEFINED ENV{SKYRIM_VR_DIRECT_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_VR_DIRECT_FOLDER}")
+        copyOutputs("$ENV{SKYRIM_VR_DIRECT_FOLDER}")
+    endif()
+
 endfunction()

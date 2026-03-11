@@ -4,6 +4,7 @@
 namespace {
     std::mutex g_mutex;
     std::unordered_map<std::string, ESPProfiling::Entry> g_entries;
+    std::atomic<uint64_t> g_nextOrder{0};
 
     std::mutex g_currentMutex;
     std::string g_currentLoading;
@@ -26,8 +27,8 @@ std::vector<std::pair<std::string, uint64_t>> ESPProfiling::SnapshotTotals() {
     return out;
 }
 
-void ESPProfiling::Record(const std::string_view espName, const uint64_t ns, const std::string_view author,
-                          const double version) {
+void ESPProfiling::Record(const std::string_view espName, const uint64_t ns, const Phase phase,
+                          const std::string_view author, const double version) {
     std::lock_guard lk(g_mutex);
     std::string key(espName);
     auto it = g_entries.find(key);
@@ -37,16 +38,60 @@ void ESPProfiling::Record(const std::string_view espName, const uint64_t ns, con
                                           .version = version,
                                           .totalNs = 0,
                                           .maxNs = 0,
-                                          .count = 0})
+                                          .count = 0,
+                                          // g_currentStartNs is valid here: SetCurrentLoading was
+                                          // called before Record and ClearCurrentLoading hasn't run.
+                                          // ESP loading is serial so no race with g_currentMutex.
+                                          .startNs = static_cast<uint64_t>(std::max(0LL, g_currentStartNs)),
+                                          .order = g_nextOrder.fetch_add(1, std::memory_order_relaxed)})
                       .first;
     }
 
     auto& e = it->second;
     if (e.author.empty() && !author.empty()) e.author.assign(author.data(), author.size());
     if (e.version < 0.0 && version >= 0.0) e.version = version;
+
     e.count++;
     e.totalNs += ns;
     if (ns > e.maxNs) e.maxNs = ns;
+
+    switch (phase) {
+        case Phase::Open:
+            e.openNs += ns;
+            break;
+        case Phase::Close:
+            e.closeNs += ns;
+            break;
+        case Phase::Load:
+        default:
+            break;
+    }
+}
+
+void ESPProfiling::Replace(const std::string_view espName, const uint64_t ns, const uint64_t openNs,
+                           const std::string_view author, const double version) {
+    std::lock_guard lk(g_mutex);
+    std::string key(espName);
+    const auto it = g_entries.find(key);
+    if (it == g_entries.end()) {
+        g_entries.emplace(key, Entry{.name = key,
+                                     .author = std::string(author),
+                                     .version = version,
+                                     .totalNs = ns,
+                                     .maxNs = ns,
+                                     .count = 1,
+                                     .openNs = openNs,
+                                     .startNs = static_cast<uint64_t>(std::max(0LL, g_currentStartNs)),
+                                     .order = g_nextOrder.fetch_add(1, std::memory_order_relaxed)});
+        return;
+    }
+    auto& e = it->second;
+    e.totalNs = ns;
+    e.maxNs = ns;
+    e.count = 1;
+    e.openNs = openNs;
+    if (e.author.empty() && !author.empty()) e.author.assign(author.data(), author.size());
+    if (e.version < 0.0 && version >= 0.0) e.version = version;
 }
 
 void ESPProfiling::SetCurrentLoading(const std::string_view espName) {

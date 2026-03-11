@@ -5,14 +5,23 @@
 #include "MessagingProfiler.h"
 #include "Events.h"
 #include "Settings.h"
+#include "VRESLIntegration.h"
 
 namespace {
     // ReSharper disable once CppParameterMayBeConstPtrOrRef
     void OnMessage(SKSE::MessagingInterface::Message* msg) {
         switch (msg->type) {
+            case SKSE::MessagingInterface::kPostPostLoad:
+                // kPostPostLoad fires after ALL plugins have processed kPostLoad,
+                // so VRESL has definitely registered its listener by now.
+                // Dispatching at kPostLoad is too early if LTP loads before VRESL.
+                VRESLIntegration::ConnectIfPresent();
+                break;
             case SKSE::MessagingInterface::kDataLoaded:
                 logger::info("Received kDataLoaded message, installing events");
                 Events::Install();
+                // Pull VRESL timing data now that ConstructObjectListThunk has run.
+                VRESLIntegration::ImportIfPresent();
                 break;
             default:
                 break;
