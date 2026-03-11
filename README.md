@@ -78,7 +78,8 @@ See `NOTICE` for the full project licensing notice.
 ## Credits
 
 * [Quantumyilmaz](https://github.com/Quantumyilmaz) — author
-* [alandtse](https://github.com/alandtse) — [CommonLibVR](https://github.com/alandtse/CommonLibVR) and [SkyrimVRESL](https://github.com/alandtse/SkyrimVRESL)
+* [alandtse](https://github.com/alandtse) — core VR integration and JSON trace export foundation (PR #11), plus [CommonLibVR](https://github.com/alandtse/CommonLibVR) and [SkyrimVRESL](https://github.com/alandtse/SkyrimVRESL)
 * [Thiago099](https://github.com/Thiago099) — [SKSE Menu Framework](https://www.nexusmods.com/skyrimspecialedition/mods/120352)
 * [powerof3](https://github.com/powerof3) — [CLibUtil](https://github.com/powerof3/CLibUtil)
 * [Ryan-rsm-McKenzie](https://github.com/Ryan-rsm-McKenzie) — CommonLibSSE
+
