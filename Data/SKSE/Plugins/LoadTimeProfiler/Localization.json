@@ -27,7 +27,6 @@
   "$ltpExportFormatCsv": "CSV",
   "$ltpExportFormatTxt": "TXT",
   "$ltpExportFormatJson": "JSON",
-  "$ltpAutoExportJson": "Auto-export JSON",
   "$ltpExportButton": "Export",
   "$ltpExportStatusSuccess": "Exported to %s",
   "$ltpExportStatusFailed": "Export failed",
