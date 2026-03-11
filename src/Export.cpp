@@ -118,23 +118,36 @@ namespace {
         return os.str();
     }
 
+    constexpr std::string_view ExtensionForFormat(const Export::Format format) {
+        switch (format) {
+            case Export::Format::Csv:
+                return ".csv";
+            case Export::Format::Txt:
+                return ".txt";
+            case Export::Format::Json:
+                return ".json";
+            case Export::Format::kTotal:
+            default:
+                return {};
+        }
+    }
+
     std::filesystem::path BuildExportPath(const Export::Format format) {
         const auto outDir = Settings::GetConfigPath().parent_path();
         std::error_code ec;
         std::filesystem::create_directories(outDir, ec);
-        auto ext = ".csv";
-        if (format == Export::Format::Txt) {
-            ext = ".txt";
-        } else if (format == Export::Format::Json) {
-            ext = ".json";
-        }
-        return outDir / ("LTP_summary_" + MakeTimestampForFile() + ext);
+        return outDir / ("LTP_summary_" + MakeTimestampForFile() + std::string(ExtensionForFormat(format)));
     }
 
     constexpr std::size_t kMaxExportFiles = 20;
 
     bool IsTrackedExportExtension(const std::string_view ext) {
-        return ext == ".csv" || ext == ".txt" || ext == ".json";
+        for (std::size_t i = 0; i < static_cast<std::size_t>(Export::Format::kTotal); ++i) {
+            if (ext == ExtensionForFormat(static_cast<Export::Format>(i))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     bool TryExtractExportTimestamp(const std::string_view stem, std::string& outTimestamp) {
