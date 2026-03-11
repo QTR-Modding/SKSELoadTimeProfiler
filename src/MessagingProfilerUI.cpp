@@ -164,9 +164,12 @@ namespace {
     void RenderSummaryActions(MessagingProfilerUI::State& s) {
         const auto exportButtonLabel = Localization::MakeLabel(Localization::ExportButton, "export-button");
         if (ImGuiMCP::ImGui::Button(exportButtonLabel.c_str())) {
-            const auto format = s.exportFormat == static_cast<int>(Export::Format::Txt)
-                                    ? Export::Format::Txt
-                                    : Export::Format::Csv;
+            auto format = Export::Format::Csv;
+            if (s.exportFormat == static_cast<int>(Export::Format::Txt)) {
+                format = Export::Format::Txt;
+            } else if (s.exportFormat == static_cast<int>(Export::Format::Json)) {
+                format = Export::Format::Json;
+            }
             Export::WriteSnapshot(format, s.exportStatus);
         }
 
