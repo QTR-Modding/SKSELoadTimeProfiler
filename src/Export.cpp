@@ -139,8 +139,6 @@ namespace {
         return outDir / ("LTP_summary_" + MakeTimestampForFile() + std::string(ExtensionForFormat(format)));
     }
 
-    constexpr std::size_t kMaxExportFiles = 20;
-
     bool IsTrackedExportExtension(const std::string_view ext) {
         for (std::size_t i = 0; i < static_cast<std::size_t>(Export::Format::kTotal); ++i) {
             if (ext == ExtensionForFormat(static_cast<Export::Format>(i))) {
@@ -191,7 +189,7 @@ namespace {
                                       .writeTime = timeEc ? std::filesystem::file_time_type::min() : writeTime});
         }
 
-        if (ec || files.size() <= kMaxExportFiles) return;
+        if (ec || files.size() <= Export::kMaxExportFiles) return;
 
         std::ranges::sort(files, [](const Candidate& a, const Candidate& b) {
             if (a.timestamp != b.timestamp) return a.timestamp > b.timestamp;
@@ -200,7 +198,7 @@ namespace {
         });
 
         std::size_t removed = 0;
-        for (std::size_t i = kMaxExportFiles; i < files.size(); ++i) {
+        for (std::size_t i = Export::kMaxExportFiles; i < files.size(); ++i) {
             std::error_code rmEc;
             if (std::filesystem::remove(files[i].path, rmEc)) {
                 ++removed;
@@ -210,7 +208,7 @@ namespace {
         }
 
         if (removed > 0) {
-            logger::info("[Export] Pruned {} old snapshot file(s); kept latest {}.", removed, kMaxExportFiles);
+            logger::info("[Export] Pruned {} old snapshot file(s); kept latest {}.", removed, Export::kMaxExportFiles);
         }
     }
 
