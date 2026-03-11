@@ -584,7 +584,7 @@ namespace {
 }
 
 void MessagingProfilerUI::Render(State& s, double& warnMs, double& critMs, bool& showDllEntries, bool& showEspEntries) {
-    const auto names = MessagingProfiler::GetMessageTypeNames();
+    static const auto names = MessagingProfiler::GetMessageTypeNames();
     const auto taggedRows = MessagingProfiler::GetTaggedRows();
     EnsureSelectionSize(s, names.size());
 
@@ -614,3 +614,4 @@ void MessagingProfilerUI::ColorCell(const double v, const double warnMs, const d
         col = ImGuiMCP::ImGui::GetColorU32(ImGuiMCP::ImVec4(0.95f, 0.75f, 0.10f, 0.25f));
     if (col) ImGuiMCP::ImGui::TableSetBgColor(ImGuiMCP::ImGuiTableBgTarget_CellBg, col);
 }
+
