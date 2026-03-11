@@ -64,16 +64,6 @@ namespace {
         os << std::fixed << std::setprecision(2) << (valueMs / 1000.0);
         return os.str();
     }
-
-    // For open/close phase durations which are sub-millisecond to low-millisecond —
-    // seconds format at 2dp would always display as 0.00.
-    std::string FormatMs(const double valueMs) {
-        if (valueMs <= 0.0) return "0.0";
-        std::ostringstream os;
-        os << std::fixed << std::setprecision(1) << valueMs;
-        return os.str();
-    }
-
     std::string FormatVersion(const double value) {
         if (value < 0.0) return PlaceholderText();
         std::ostringstream os;
@@ -580,7 +570,7 @@ namespace {
             << EscapeCsv(Localization::Version) << ',' << EscapeCsv(Localization::ColumnType)
             << ',' << EscapeCsv(Localization::TotalSecondsLabel);
         for (const auto idx : msgIndices) out << ',' << EscapeCsv(Localization::MessageTypeLabel(idx));
-        out << ",open_ms,close_ms\n";
+        out << "\n";
 
         out << EscapeCsv(fmt::format("{} ({})", Localization::TotalsRowLabel, totals.rowCount)) << ',';
         out << EscapeCsv(PlaceholderText()) << ',';
@@ -590,7 +580,7 @@ namespace {
         for (const auto idx : msgIndices) {
             out << ',' << FormatSeconds(totals.colTotals[idx]);
         }
-        out << ",,\n";
+        out << "\n";
 
         for (const auto& row : rows) {
             out << EscapeCsv(row.module) << ',';
@@ -602,11 +592,6 @@ namespace {
                 double value = row.perMsg[idx];
                 if (row.isEsp) value = 0.0;
                 out << ',' << FormatSeconds(value);
-            }
-            if (row.isEsp) {
-                out << ',' << FormatMs(row.openMs) << ',' << FormatMs(row.closeMs);
-            } else {
-                out << ",,";
             }
             out << "\n";
         }
@@ -667,7 +652,6 @@ namespace {
             std::string type;
             std::string total;
             std::vector<std::string> perMsg;
-            std::string annotation;  // e.g. "  (open: 0.012s, close: 0.001s)" — appended after last col
         };
 
         std::vector<RenderedRow> rendered;
@@ -707,14 +691,6 @@ namespace {
             rr.type = row->isEsp ? Localization::TypeEsp : Localization::TypeDll;
             rr.total = FormatSeconds(row->totalMs);
             rr.perMsg.reserve(msgIndices.size());
-            if (row->isEsp && (row->openMs > 0.0 || row->closeMs > 0.0)) {
-                std::string ann = "  (";
-                if (row->openMs  > 0.0) ann += "open: "  + FormatMs(row->openMs)  + "ms";
-                if (row->openMs  > 0.0 && row->closeMs > 0.0) ann += ", ";
-                if (row->closeMs > 0.0) ann += "close: " + FormatMs(row->closeMs) + "ms";
-                ann += ")";
-                rr.annotation = std::move(ann);
-            }
 
             moduleWidth = std::min(kMaxModuleWidth, std::max(moduleWidth, rr.module.size()));
             authorWidth = std::min(kMaxAuthorWidth, std::max(authorWidth, rr.author.size()));
@@ -763,7 +739,7 @@ namespace {
             for (std::size_t i = 0; i < rr.perMsg.size() && i < msgWidths.size(); ++i) {
                 out << "  " << std::setw(static_cast<int>(msgWidths[i])) << rr.perMsg[i];
             }
-            out << rr.annotation << "\n";
+            out << "\n";
         }
 
         return true;
