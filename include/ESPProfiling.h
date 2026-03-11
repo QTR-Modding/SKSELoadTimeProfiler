@@ -25,9 +25,6 @@ namespace ESPProfiling {
 
     void Record(std::string_view espName, uint64_t ns, Phase phase,
                      std::string_view author = {}, double version = -1.0);
-    void RecordLoad(std::string_view espName, uint64_t ns, std::string_view author = {}, double version = -1.0);
-    void RecordOpen(std::string_view espName, uint64_t ns, std::string_view author = {}, double version = -1.0);
-    void RecordClose(std::string_view espName, uint64_t ns, std::string_view author = {}, double version = -1.0);
 
     // Overwrite an existing entry's timing with new values (does not accumulate).
     // Creates a new entry if none exists. Used by VRESL integration to replace

@@ -20,43 +20,16 @@ namespace {
         if (!file) return -1.0;
         return file->version;
     }
-
     template <class Fn, class... Args>
-    auto TimeCallLoad(const std::string& nameStr, const std::string& authorStr, const double version, Fn&& fn,
-                  Args&&... args) {
+    auto TimeCall(const std::string& nameStr, const std::string& authorStr, const double version,
+                  const ESPProfiling::Phase phase, Fn&& fn, Args&&... args) {
         const char* name = nameStr.empty() ? nullptr : nameStr.c_str();
         const auto start = std::chrono::high_resolution_clock::now();
         auto result = fn(std::forward<Args>(args)...);
         const auto end = std::chrono::high_resolution_clock::now();
         const auto ns =
             static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        if (name) ESPProfiling::RecordLoad(name, ns, authorStr, version);
-        return result;
-    }
-
-    template <class Fn, class... Args>
-    auto TimeCallOpen(const std::string& nameStr, const std::string& authorStr, const double version, Fn&& fn,
-                      Args&&... args) {
-        const char* name = nameStr.empty() ? nullptr : nameStr.c_str();
-        const auto start = std::chrono::high_resolution_clock::now();
-        auto result = fn(std::forward<Args>(args)...);
-        const auto end = std::chrono::high_resolution_clock::now();
-        const auto ns =
-            static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        if (name) ESPProfiling::RecordOpen(name, ns, authorStr, version);
-        return result;
-    }
-
-    template <class Fn, class... Args>
-    auto TimeCallClose(const std::string& nameStr, const std::string& authorStr, const double version, Fn&& fn,
-                       Args&&... args) {
-        const char* name = nameStr.empty() ? nullptr : nameStr.c_str();
-        const auto start = std::chrono::high_resolution_clock::now();
-        auto result = fn(std::forward<Args>(args)...);
-        const auto end = std::chrono::high_resolution_clock::now();
-        const auto ns =
-            static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        if (name) ESPProfiling::RecordClose(name, ns, authorStr, version);
+        if (name) ESPProfiling::Record(name, ns, phase, authorStr, version);
         return result;
     }
 }
@@ -87,7 +60,7 @@ int64_t Hooks::TESLoad::thunk(int64_t a1, RE::TESFile* file, char a2) {
     const auto author = GetCreatedBy(file);
     const double version = GetPluginVersion(file);
     ESPProfiling::SetCurrentLoading(filename);
-    auto result = TimeCallLoad(filename, author, version, fn, a1, file, a2);
+    auto result = TimeCall(filename, author, version, ESPProfiling::Phase::Load, fn, a1, file, a2);
     ESPProfiling::ClearCurrentLoading();
     return result;
 }
@@ -109,7 +82,7 @@ bool Hooks::OpenTESHook::thunk1(RE::TESFile* file, RE::NiFile::OpenMode m, bool 
     const auto author = GetCreatedBy(file);
     const double version = GetPluginVersion(file);
     ESPProfiling::SetCurrentLoading(filename);
-    auto result = TimeCallOpen(filename, author, version, fn, file, m, l);
+    auto result = TimeCall(filename, author, version, ESPProfiling::Phase::Open, fn, file, m, l);
     ESPProfiling::ClearCurrentLoading();
     return result;
 }
@@ -120,7 +93,7 @@ bool Hooks::OpenTESHook::thunk2(RE::TESFile* file, RE::NiFile::OpenMode m, bool 
     const auto author = GetCreatedBy(file);
     const double version = GetPluginVersion(file);
     ESPProfiling::SetCurrentLoading(filename);
-    auto result = TimeCallOpen(filename, author, version, fn, file, m, l);
+    auto result = TimeCall(filename, author, version, ESPProfiling::Phase::Open, fn, file, m, l);
     ESPProfiling::ClearCurrentLoading();
     return result;
 }
@@ -138,7 +111,7 @@ bool Hooks::CloseTESHook::thunk6(RE::TESFile* file, bool a_force) {
     const auto author = GetCreatedBy(file);
     const double version = GetPluginVersion(file);
     ESPProfiling::SetCurrentLoading(filename);
-    auto result = TimeCallClose(filename, author, version, fn, file, a_force);
+    auto result = TimeCall(filename, author, version, ESPProfiling::Phase::Close, fn, file, a_force);
     ESPProfiling::ClearCurrentLoading();
     return result;
 }
@@ -149,7 +122,7 @@ bool Hooks::CloseTESHook::thunk7(RE::TESFile* file, bool a_force) {
     const auto author = GetCreatedBy(file);
     const double version = GetPluginVersion(file);
     ESPProfiling::SetCurrentLoading(filename);
-    auto result = TimeCallClose(filename, author, version, fn, file, a_force);
+    auto result = TimeCall(filename, author, version, ESPProfiling::Phase::Close, fn, file, a_force);
     ESPProfiling::ClearCurrentLoading();
     return result;
 }

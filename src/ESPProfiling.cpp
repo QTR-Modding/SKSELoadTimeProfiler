@@ -68,21 +68,6 @@ void ESPProfiling::Record(const std::string_view espName, const uint64_t ns, con
     }
 }
 
-void ESPProfiling::RecordLoad(const std::string_view espName, const uint64_t ns, const std::string_view author,
-                          const double version) {
-    Record(espName, ns, Phase::Load, author, version);
-}
-
-void ESPProfiling::RecordOpen(const std::string_view espName, const uint64_t ns, const std::string_view author,
-                              const double version) {
-    Record(espName, ns, Phase::Open, author, version);
-}
-
-void ESPProfiling::RecordClose(const std::string_view espName, const uint64_t ns, const std::string_view author,
-                               const double version) {
-    Record(espName, ns, Phase::Close, author, version);
-}
-
 void ESPProfiling::Replace(const std::string_view espName, const uint64_t ns, const uint64_t openNs,
                            const std::string_view author, const double version) {
     std::lock_guard lk(g_mutex);
