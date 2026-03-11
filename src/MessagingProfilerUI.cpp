@@ -7,7 +7,6 @@
 #include "Utils.h"
 #include "Localization.h"
 #include <fmt/printf.h>
-#include <functional>
 #include "SKSEMCP/SKSEMenuFramework.hpp"
 
 

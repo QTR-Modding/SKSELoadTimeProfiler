@@ -72,7 +72,7 @@ namespace {
         return os.str();
     }
 
-    std::string EscapeCsv(std::string_view value) {
+    std::string EscapeCsv(const std::string_view value) {
         bool needsQuote = false;
         for (const char c : value) {
             if (c == ',' || c == '"' || c == '\n' || c == '\r') {
@@ -129,6 +129,76 @@ namespace {
             ext = ".json";
         }
         return outDir / ("LTP_summary_" + MakeTimestampForFile() + ext);
+    }
+
+    constexpr std::size_t kMaxExportFiles = 20;
+
+    bool IsTrackedExportExtension(const std::string_view ext) {
+        return ext == ".csv" || ext == ".txt" || ext == ".json";
+    }
+
+    bool TryExtractExportTimestamp(const std::string_view stem, std::string& outTimestamp) {
+        constexpr std::string_view prefix = "LTP_summary_";
+        if (!stem.starts_with(prefix)) return false;
+        const auto ts = stem.substr(prefix.size());
+        if (ts.size() != 15 || ts[8] != '_') return false;
+        for (std::size_t i = 0; i < ts.size(); ++i) {
+            if (i == 8) continue;
+            if (!std::isdigit(static_cast<unsigned char>(ts[i]))) return false;
+        }
+        outTimestamp.assign(ts);
+        return true;
+    }
+
+    void PruneOldExports(const std::filesystem::path& outDir) {
+        struct Candidate {
+            std::filesystem::path path;
+            std::string timestamp;
+            std::filesystem::file_time_type writeTime{};
+        };
+
+        std::vector<Candidate> files;
+        std::error_code ec;
+        for (std::filesystem::directory_iterator it(outDir, ec), end; !ec && it != end; it.increment(ec)) {
+            std::error_code fileEc;
+            if (!it->is_regular_file(fileEc) || fileEc) continue;
+
+            const auto filePath = it->path();
+            const auto ext = filePath.extension().string();
+            if (!IsTrackedExportExtension(ext)) continue;
+
+            const auto stem = filePath.stem().string();
+            std::string timestamp;
+            if (!TryExtractExportTimestamp(stem, timestamp)) continue;
+
+            std::error_code timeEc;
+            const auto writeTime = std::filesystem::last_write_time(filePath, timeEc);
+            files.push_back(Candidate{.path = filePath,
+                                      .timestamp = std::move(timestamp),
+                                      .writeTime = timeEc ? std::filesystem::file_time_type::min() : writeTime});
+        }
+
+        if (ec || files.size() <= kMaxExportFiles) return;
+
+        std::ranges::sort(files, [](const Candidate& a, const Candidate& b) {
+            if (a.timestamp != b.timestamp) return a.timestamp > b.timestamp;
+            if (a.writeTime != b.writeTime) return a.writeTime > b.writeTime;
+            return a.path.string() > b.path.string();
+        });
+
+        std::size_t removed = 0;
+        for (std::size_t i = kMaxExportFiles; i < files.size(); ++i) {
+            std::error_code rmEc;
+            if (std::filesystem::remove(files[i].path, rmEc)) {
+                ++removed;
+            } else if (rmEc) {
+                logger::warn("[Export] Failed to prune old snapshot '{}': {}", files[i].path.string(), rmEc.message());
+            }
+        }
+
+        if (removed > 0) {
+            logger::info("[Export] Pruned {} old snapshot file(s); kept latest {}.", removed, kMaxExportFiles);
+        }
     }
 
     std::string TrimAscii(const std::string& value) {
@@ -417,9 +487,9 @@ namespace {
             events.PushBack(si, alloc);
         };
 
-        auto addX = [&](const char* cat, std::string_view name, double tsUs, double durUs, int tid,
-                        std::string_view author, std::string_view version,
-                        double openMs = 0.0, double closeMs = 0.0) {
+        auto addX = [&](const char* cat, const std::string_view name, const double tsUs, const double durUs, const int tid,
+                        const std::string_view author, const std::string_view version,
+                        const double openMs = 0.0, const double closeMs = 0.0) {
             rapidjson::Value ev(rapidjson::kObjectType);
             ev.AddMember("cat", rapidjson::StringRef(cat), alloc);
             ev.AddMember("name", rapidjson::Value(name.data(), static_cast<rapidjson::SizeType>(name.size()), alloc),
@@ -780,6 +850,7 @@ bool Export::WriteSnapshot(const Format format, std::string& statusMessage) {
                         : WriteCsv(path, summary, systemInfo, messageNames, exportRows);
 
     if (ok) {
+        PruneOldExports(path.parent_path());
         statusMessage = BuildSuccessStatus(path);
         return true;
     }
