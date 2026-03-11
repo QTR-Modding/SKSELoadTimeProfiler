@@ -174,9 +174,7 @@ namespace {
         ImGuiMCP::ImGui::SetNextItemWidth(120.0f);
         const auto exportFormatLabel = Localization::MakeLabel("", "export-format");
         const char* formats[] = {Localization::ExportFormatCsv.c_str(), Localization::ExportFormatTxt.c_str(), Localization::ExportFormatJson.c_str()};
-        if (ImGuiMCP::ImGui::Combo(exportFormatLabel.c_str(), &s.exportFormat, formats, 3)) {
-            Settings::Save();
-        }
+        ImGuiMCP::ImGui::Combo(exportFormatLabel.c_str(), &s.exportFormat, formats, 3);
 
         if (!s.exportStatus.empty()) {
             ImGuiMCP::ImGui::SameLine();
