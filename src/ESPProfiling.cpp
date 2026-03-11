@@ -27,8 +27,8 @@ std::vector<std::pair<std::string, uint64_t>> ESPProfiling::SnapshotTotals() {
     return out;
 }
 
-void ESPProfiling::Record(const std::string_view espName, const uint64_t ns, const std::string_view author,
-                          const double version) {
+void ESPProfiling::Record(const std::string_view espName, const uint64_t ns, const Phase phase,
+                               const std::string_view author, const double version) {
     std::lock_guard lk(g_mutex);
     std::string key(espName);
     auto it = g_entries.find(key);
@@ -50,49 +50,37 @@ void ESPProfiling::Record(const std::string_view espName, const uint64_t ns, con
     auto& e = it->second;
     if (e.author.empty() && !author.empty()) e.author.assign(author.data(), author.size());
     if (e.version < 0.0 && version >= 0.0) e.version = version;
+
     e.count++;
     e.totalNs += ns;
     if (ns > e.maxNs) e.maxNs = ns;
+
+    switch (phase) {
+        case Phase::Open:
+            e.openNs += ns;
+            break;
+        case Phase::Close:
+            e.closeNs += ns;
+            break;
+        case Phase::Load:
+        default:
+            break;
+    }
+}
+
+void ESPProfiling::RecordLoad(const std::string_view espName, const uint64_t ns, const std::string_view author,
+                          const double version) {
+    Record(espName, ns, Phase::Load, author, version);
 }
 
 void ESPProfiling::RecordOpen(const std::string_view espName, const uint64_t ns, const std::string_view author,
                               const double version) {
-    std::lock_guard lk(g_mutex);
-    std::string key(espName);
-    auto it = g_entries.find(key);
-    if (it == g_entries.end()) {
-        it = g_entries.emplace(key, Entry{.name = key,
-                                          .author = std::string(author),
-                                          .version = version,
-                                          .startNs = static_cast<uint64_t>(std::max(0LL, g_currentStartNs)),
-                                          .order = g_nextOrder.fetch_add(1, std::memory_order_relaxed)})
-                      .first;
-    }
-    auto& e = it->second;
-    e.openNs += ns;
-    if (e.author.empty() && !author.empty()) e.author.assign(author.data(), author.size());
-    if (e.version < 0.0 && version >= 0.0) e.version = version;
+    Record(espName, ns, Phase::Open, author, version);
 }
 
 void ESPProfiling::RecordClose(const std::string_view espName, const uint64_t ns, const std::string_view author,
                                const double version) {
-    std::lock_guard lk(g_mutex);
-    std::string key(espName);
-    auto it = g_entries.find(key);
-    if (it == g_entries.end()) {
-        it = g_entries.emplace(key, Entry{.name = key,
-                                          .author = std::string(author),
-                                          .version = version,
-                                          .closeNs = ns,
-                                          .startNs = static_cast<uint64_t>(std::max(0LL, g_currentStartNs)),
-                                          .order = g_nextOrder.fetch_add(1, std::memory_order_relaxed)})
-                      .first;
-        return;
-    }
-    auto& e = it->second;
-    e.closeNs += ns;
-    if (e.author.empty() && !author.empty()) e.author.assign(author.data(), author.size());
-    if (e.version < 0.0 && version >= 0.0) e.version = version;
+    Record(espName, ns, Phase::Close, author, version);
 }
 
 void ESPProfiling::Replace(const std::string_view espName, const uint64_t ns, const uint64_t openNs,

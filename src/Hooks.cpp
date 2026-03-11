@@ -1,5 +1,4 @@
 #include "Hooks.h"
-
 #include "ESPProfiling.h"
 
 
@@ -23,7 +22,7 @@ namespace {
     }
 
     template <class Fn, class... Args>
-    auto TimeCall(const std::string& nameStr, const std::string& authorStr, const double version, Fn&& fn,
+    auto TimeCallLoad(const std::string& nameStr, const std::string& authorStr, const double version, Fn&& fn,
                   Args&&... args) {
         const char* name = nameStr.empty() ? nullptr : nameStr.c_str();
         const auto start = std::chrono::high_resolution_clock::now();
@@ -31,7 +30,7 @@ namespace {
         const auto end = std::chrono::high_resolution_clock::now();
         const auto ns =
             static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-        if (name) ESPProfiling::Record(name, ns, authorStr, version);
+        if (name) ESPProfiling::RecordLoad(name, ns, authorStr, version);
         return result;
     }
 
@@ -88,7 +87,7 @@ int64_t Hooks::TESLoad::thunk(int64_t a1, RE::TESFile* file, char a2) {
     const auto author = GetCreatedBy(file);
     const double version = GetPluginVersion(file);
     ESPProfiling::SetCurrentLoading(filename);
-    auto result = TimeCall(filename, author, version, fn, a1, file, a2);
+    auto result = TimeCallLoad(filename, author, version, fn, a1, file, a2);
     ESPProfiling::ClearCurrentLoading();
     return result;
 }
