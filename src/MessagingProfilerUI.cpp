@@ -7,6 +7,7 @@
 #include "Utils.h"
 #include "Localization.h"
 #include <fmt/printf.h>
+#include <functional>
 #include "SKSEMCP/SKSEMenuFramework.hpp"
 
 
@@ -74,15 +75,9 @@ namespace {
 
     struct RowWrap {
         std::string module;
-        std::string_view typeStr;
-        double total;
-        const std::array<double, SKSE::MessagingInterface::kTotal>* vals;
         bool isEsp;
-    };
-
-    struct RenderRows {
-        std::vector<MessagingProfiler::TaggedRow> taggedRows;
-        std::vector<RowWrap> rows;
+        double total;
+        std::array<double, SKSE::MessagingInterface::kTotal> vals{};
     };
 
     bool CaseInsensitiveContains(const std::string_view haystack, const std::string_view needle) {
@@ -209,9 +204,9 @@ namespace {
         }
     }
 
-    void RenderSummary(const MessagingProfilerUI::State& s) {
+    void RenderSummary(const MessagingProfilerUI::State& s,
+                       const std::vector<MessagingProfiler::TaggedRow>& taggedRows) {
         ImGuiMCP::ImGui::TextUnformatted(Localization::Summary.c_str());
-        const auto taggedRows = MessagingProfiler::GetTaggedRows();
         double totalEspMs = 0.0;
         double totalDllMs = 0.0;
         for (const auto& row : taggedRows) {
@@ -380,19 +375,15 @@ namespace {
         return active;
     }
 
-    RenderRows BuildEnrichedRows(const MessagingProfilerUI::State& s, const std::vector<std::size_t>& active,
-                                 const std::string_view filter, const bool showDllEntries, const bool showEspEntries) {
-        RenderRows result;
-        result.taggedRows = MessagingProfiler::GetTaggedRows();
-
-        std::erase_if(result.taggedRows, [&](const MessagingProfiler::TaggedRow& r) {
-            if (r.kind == MessagingProfiler::SourceKind::DLL && !showDllEntries) return true;
-            if (r.kind == MessagingProfiler::SourceKind::ESP && !showEspEntries) return true;
-            return false;
-        });
-
-        result.rows.reserve(result.taggedRows.size());
-        for (auto& r : result.taggedRows) {
+    std::vector<RowWrap> BuildEnrichedRows(const MessagingProfilerUI::State& s,
+                                           const std::vector<MessagingProfiler::TaggedRow>& taggedRows,
+                                           const std::vector<std::size_t>& active, const std::string_view filter,
+                                           const bool showDllEntries, const bool showEspEntries) {
+        std::vector<RowWrap> rows;
+        rows.reserve(taggedRows.size());
+        for (const auto& r : taggedRows) {
+            if (r.kind == MessagingProfiler::SourceKind::DLL && !showDllEntries) continue;
+            if (r.kind == MessagingProfiler::SourceKind::ESP && !showEspEntries) continue;
             if (!filter.empty() && !CaseInsensitiveContains(r.module, filter)) continue;
             double sum = 0.0;
             if (r.kind == MessagingProfiler::SourceKind::ESP) {
@@ -404,35 +395,66 @@ namespace {
                     sum += v;
                 }
             }
-            result.rows.push_back({r.module,
-                                   r.kind == MessagingProfiler::SourceKind::ESP
-                                       ? Localization::TypeEsp
-                                       : Localization::TypeDll,
-                                   sum,
-                                   &r.perMsg,
-                                   r.kind == MessagingProfiler::SourceKind::ESP});
+            rows.push_back({r.module, r.kind == MessagingProfiler::SourceKind::ESP, sum, r.perMsg});
         }
 
-        std::ranges::sort(result.rows, [&](const RowWrap& A, const RowWrap& B) {
+        std::ranges::sort(rows, [&](const RowWrap& A, const RowWrap& B) {
             if (s.sortColumn == 0) return s.sortAsc ? A.module < B.module : A.module > B.module;
-            if (s.sortColumn == 1)
-                return s.sortAsc
-                           ? std::string_view(A.typeStr) < std::string_view(B.typeStr)
-                           : std::string_view(A.typeStr) > std::string_view(B.typeStr);
+            if (s.sortColumn == 1) {
+                const auto aType = A.isEsp
+                                       ? std::string_view(Localization::TypeEsp)
+                                       : std::string_view(Localization::TypeDll);
+                const auto bType = B.isEsp
+                                       ? std::string_view(Localization::TypeEsp)
+                                       : std::string_view(Localization::TypeDll);
+                return s.sortAsc ? aType < bType : aType > bType;
+            }
             if (s.sortColumn == 2) return s.sortAsc ? A.total < B.total : A.total > B.total;
             const std::size_t msgIdx = active[s.sortColumn - 3];
-            double av = (*A.vals)[msgIdx];
+            double av = A.vals[msgIdx];
             if (av < 1.0 || A.isEsp) av = 0.0;
-            double bv = (*B.vals)[msgIdx];
+            double bv = B.vals[msgIdx];
             if (bv < 1.0 || B.isEsp) bv = 0.0;
             return s.sortAsc ? av < bv : av > bv;
         });
 
-        return result;
+        return rows;
     }
 
+    uint64_t ComputeTaggedRowsStamp(const std::vector<MessagingProfiler::TaggedRow>& taggedRows) {
+        uint64_t hash = taggedRows.size();
+        auto mix = [&hash](const uint64_t v) {
+            hash ^= v + 0x9e3779b97f4a7c15ULL + (hash << 6) + (hash >> 2);
+        };
+
+        for (const auto& row : taggedRows) {
+            mix(std::hash<std::string>{}(row.module));
+            mix(static_cast<uint64_t>(row.kind));
+            mix(std::hash<double>{}(row.totalMs));
+            for (const auto v : row.perMsg) {
+                mix(std::hash<double>{}(v));
+            }
+        }
+
+        return hash;
+    }
+
+    struct ResultsTableCache {
+        bool initialized{false};
+        uint64_t dataStamp{0};
+        std::string filter;
+        bool showDllEntries{true};
+        bool showEspEntries{true};
+        int sortColumn{0};
+        bool sortAsc{true};
+        std::vector<std::size_t> active;
+        std::vector<RowWrap> rows;
+        std::vector<double> colTotals;
+        double grandTotal{0.0};
+    };
+
     void RenderResultsTable(MessagingProfilerUI::State& s, const std::vector<std::string_view>& names,
-                            const double warnMs,
+                            const std::vector<MessagingProfiler::TaggedRow>& taggedRows, const double warnMs,
                             const double critMs, bool& showDllEntries, bool& showEspEntries) {
         ImGuiMCP::ImGui::Separator();
         ImGuiMCP::ImGui::Spacing();
@@ -488,20 +510,48 @@ namespace {
                     s.sortAsc = sortSpecs->Specs[0].SortDirection == ImGuiMCP::ImGuiSortDirection_Ascending;
                 }
 
-            auto renderRows = BuildEnrichedRows(s, active, filter, showDllEntries, showEspEntries);
-            std::vector colTotals(active.size(), 0.0);
-            for (const auto& e : renderRows.rows)
-                for (std::size_t c = 0; c < active.size(); ++c) {
-                    double v = (*e.vals)[active[c]];
-                    if (e.isEsp || v < 1.0) v = 0.0;
-                    colTotals[c] += v;
-                }
-            double totalsSum = 0.0;
-            for (const double v : colTotals) totalsSum += v;
-            double espExtra = 0.0;
-            for (const auto& e : renderRows.rows)
-                if (e.isEsp) espExtra += e.total;
-            const double grandTotal = totalsSum + espExtra;
+            static ResultsTableCache cache;
+
+            const auto dataStamp = ComputeTaggedRowsStamp(taggedRows);
+            const bool dirty = !cache.initialized ||
+                               cache.dataStamp != dataStamp ||
+                               cache.filter != filter ||
+                               cache.showDllEntries != showDllEntries ||
+                               cache.showEspEntries != showEspEntries ||
+                               cache.sortColumn != s.sortColumn ||
+                               cache.sortAsc != s.sortAsc ||
+                               cache.active != active;
+
+            if (dirty) {
+                cache.rows = BuildEnrichedRows(s, taggedRows, active, filter, showDllEntries, showEspEntries);
+                cache.colTotals.assign(active.size(), 0.0);
+                for (const auto& e : cache.rows)
+                    for (std::size_t c = 0; c < active.size(); ++c) {
+                        double v = e.vals[active[c]];
+                        if (e.isEsp || v < 1.0) v = 0.0;
+                        cache.colTotals[c] += v;
+                    }
+
+                double totalsSum = 0.0;
+                for (const double v : cache.colTotals) totalsSum += v;
+                double espExtra = 0.0;
+                for (const auto& e : cache.rows)
+                    if (e.isEsp) espExtra += e.total;
+                cache.grandTotal = totalsSum + espExtra;
+
+                cache.dataStamp = dataStamp;
+                cache.filter.assign(filter.data(), filter.size());
+                cache.showDllEntries = showDllEntries;
+                cache.showEspEntries = showEspEntries;
+                cache.sortColumn = s.sortColumn;
+                cache.sortAsc = s.sortAsc;
+                cache.active = active;
+                cache.initialized = true;
+            }
+
+            const auto& renderRows = cache.rows;
+            const auto& colTotals = cache.colTotals;
+            const double grandTotal = cache.grandTotal;
             const double displayScale = s.showSeconds ? 0.001 : 1.0;
             const char* displayFmt = s.showSeconds ? "%.2f" : "%.0f";
 
@@ -515,7 +565,7 @@ namespace {
             ImGuiMCP::ImGui::TableSetBgColor(ImGuiMCP::ImGuiTableBgTarget_RowBg0, totalsColor);
             ImGuiMCP::ImGui::TableSetColumnIndex(0);
             ImGuiMCP::ImGui::Text("%s (%llu)", Localization::TotalsRowLabel.c_str(),
-                                  static_cast<unsigned long long>(renderRows.rows.size()));
+                                  static_cast<unsigned long long>(renderRows.size()));
             ImGuiMCP::ImGui::TableSetColumnIndex(1);
             ImGuiMCP::ImGui::TextUnformatted(Localization::PlaceholderEmpty.c_str());
             ImGuiMCP::ImGui::TableSetColumnIndex(2);
@@ -531,10 +581,10 @@ namespace {
             static auto clipper = ImGuiMCP::ImGui::ImGuiListClipperManager::Create();
             if (clipper) {
                 ImGuiMCP::ImGui::ImGuiListClipperManager::Begin(
-                    clipper, static_cast<int>(renderRows.rows.size()), 0.0f);
+                    clipper, static_cast<int>(renderRows.size()), 0.0f);
                 while (ImGuiMCP::ImGui::ImGuiListClipperManager::Step(clipper)) {
                     for (int i = clipper->DisplayStart; i < clipper->DisplayEnd; ++i) {
-                        auto& e = renderRows.rows[static_cast<std::size_t>(i)];
+                        auto& e = renderRows[static_cast<std::size_t>(i)];
                         ImGuiMCP::ImGui::TableNextRow();
                         ImGuiMCP::ImGui::TableSetColumnIndex(0);
                         ImGuiMCP::ImGui::TextUnformatted(e.module.c_str());
@@ -565,13 +615,14 @@ namespace {
                             }
                         }
                         ImGuiMCP::ImGui::TableSetColumnIndex(1);
-                        ImGuiMCP::ImGui::TextUnformatted(e.typeStr.data(), e.typeStr.data() + e.typeStr.size());
+                        ImGuiMCP::ImGui::TextUnformatted(
+                            e.isEsp ? Localization::TypeEsp.c_str() : Localization::TypeDll.c_str());
                         ImGuiMCP::ImGui::TableSetColumnIndex(2);
                         MessagingProfilerUI::ColorCell(e.total, warnMs, critMs);
                         ImGuiMCP::ImGui::Text(displayFmt, e.total * displayScale);
                         for (std::size_t c = 0; c < active.size(); ++c) {
                             ImGuiMCP::ImGui::TableSetColumnIndex(static_cast<int>(c + 3));
-                            double v = (*e.vals)[active[c]];
+                            double v = e.vals[active[c]];
                             if (v < 1.0 || e.isEsp) v = 0.0;
                             if (!e.isEsp) MessagingProfilerUI::ColorCell(v, warnMs, critMs);
                             ImGuiMCP::ImGui::Text(displayFmt, v * displayScale);
@@ -589,7 +640,8 @@ namespace {
 }
 
 void MessagingProfilerUI::Render(State& s, double& warnMs, double& critMs, bool& showDllEntries, bool& showEspEntries) {
-    const auto names = MessagingProfiler::GetMessageTypeNames();
+    static const auto names = MessagingProfiler::GetMessageTypeNames();
+    const auto taggedRows = MessagingProfiler::GetTaggedRows();
     EnsureSelectionSize(s, names.size());
 
     if (!s.initializedFromDisk && !s.selected.empty()) {
@@ -603,11 +655,11 @@ void MessagingProfilerUI::Render(State& s, double& warnMs, double& critMs, bool&
         if (!any) std::ranges::fill(s.selected, true);
     }
 
-    RenderSummary(s);
+    RenderSummary(s, taggedRows);
     RenderSummaryActions(s);
     ImGuiMCP::ImGui::Spacing();
     RenderControls(s, names, warnMs, critMs);
-    RenderResultsTable(s, names, warnMs, critMs, showDllEntries, showEspEntries);
+    RenderResultsTable(s, names, taggedRows, warnMs, critMs, showDllEntries, showEspEntries);
 }
 
 void MessagingProfilerUI::ColorCell(const double v, const double warnMs, const double critMs) {
