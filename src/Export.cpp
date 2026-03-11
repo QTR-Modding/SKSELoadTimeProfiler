@@ -26,8 +26,8 @@ namespace {
         std::string version;
         bool isEsp{false};
         double totalMs{0.0};
-        double openMs{0.0};   // ESP only: file open phase (0 if not captured)
-        double closeMs{0.0};  // ESP only: file close phase (0 if not captured)
+        double openMs{0.0}; // ESP only: file open phase (0 if not captured)
+        double closeMs{0.0}; // ESP only: file close phase (0 if not captured)
         std::array<double, SKSE::MessagingInterface::kTotal> perMsg{};
     };
 
@@ -64,6 +64,7 @@ namespace {
         os << std::fixed << std::setprecision(2) << (valueMs / 1000.0);
         return os.str();
     }
+
     std::string FormatVersion(const double value) {
         if (value < 0.0) return PlaceholderText();
         std::ostringstream os;
@@ -118,10 +119,10 @@ namespace {
     }
 
     std::filesystem::path BuildExportPath(const Export::Format format) {
-        auto outDir = Settings::GetConfigPath().parent_path();
+        const auto outDir = Settings::GetConfigPath().parent_path();
         std::error_code ec;
         std::filesystem::create_directories(outDir, ec);
-        const char* ext = ".csv";
+        auto ext = ".csv";
         if (format == Export::Format::Txt) {
             ext = ".txt";
         } else if (format == Export::Format::Json) {
@@ -212,8 +213,8 @@ namespace {
     }
 
     std::string DetectGpuVendor(std::string deviceId) {
-        std::transform(deviceId.begin(), deviceId.end(), deviceId.begin(),
-                       [](const unsigned char c) { return static_cast<char>(std::toupper(c)); });
+        std::ranges::transform(deviceId, deviceId.begin(),
+                               [](const unsigned char c) { return static_cast<char>(std::toupper(c)); });
         if (deviceId.find("VEN_10DE") != std::string::npos) return "Nvidia";
         if (deviceId.find("VEN_8086") != std::string::npos) return "Intel";
         if (deviceId.find("VEN_1002") != std::string::npos || deviceId.find("VEN_1022") != std::string::npos)
@@ -284,9 +285,9 @@ namespace {
         std::unordered_map<std::string, EspMeta> out;
         for (const auto& entry : ESPProfiling::SnapshotEntries()) {
             out[entry.name] = EspMeta{
-                .author  = entry.author,
+                .author = entry.author,
                 .version = entry.version,
-                .openMs  = static_cast<double>(entry.openNs)  / 1'000'000.0,
+                .openMs = static_cast<double>(entry.openNs) / 1'000'000.0,
                 .closeMs = static_cast<double>(entry.closeNs) / 1'000'000.0,
             };
         }
@@ -321,9 +322,9 @@ namespace {
             if (out.isEsp) {
                 auto it = espMeta.find(out.module);
                 if (it != espMeta.end()) {
-                    out.author  = it->second.author.empty() ? PlaceholderText() : it->second.author;
+                    out.author = it->second.author.empty() ? PlaceholderText() : it->second.author;
                     out.version = FormatVersion(it->second.version);
-                    out.openMs  = it->second.openMs;
+                    out.openMs = it->second.openMs;
                     out.closeMs = it->second.closeMs;
                 } else {
                     out.author = PlaceholderText();
@@ -396,19 +397,20 @@ namespace {
         auto addMeta = [&](int tid, std::string_view name, int sortIdx) {
             rapidjson::Value tn(rapidjson::kObjectType);
             tn.AddMember("name", rapidjson::StringRef("thread_name"), alloc);
-            tn.AddMember("ph",   rapidjson::StringRef("M"), alloc);
-            tn.AddMember("pid",  0, alloc);
-            tn.AddMember("tid",  tid, alloc);
+            tn.AddMember("ph", rapidjson::StringRef("M"), alloc);
+            tn.AddMember("pid", 0, alloc);
+            tn.AddMember("tid", tid, alloc);
             rapidjson::Value args(rapidjson::kObjectType);
-            args.AddMember("name", rapidjson::Value(name.data(), static_cast<rapidjson::SizeType>(name.size()), alloc), alloc);
+            args.AddMember("name", rapidjson::Value(name.data(), static_cast<rapidjson::SizeType>(name.size()), alloc),
+                           alloc);
             tn.AddMember("args", args, alloc);
             events.PushBack(tn, alloc);
 
             rapidjson::Value si(rapidjson::kObjectType);
             si.AddMember("name", rapidjson::StringRef("thread_sort_index"), alloc);
-            si.AddMember("ph",   rapidjson::StringRef("M"), alloc);
-            si.AddMember("pid",  0, alloc);
-            si.AddMember("tid",  tid, alloc);
+            si.AddMember("ph", rapidjson::StringRef("M"), alloc);
+            si.AddMember("pid", 0, alloc);
+            si.AddMember("tid", tid, alloc);
             rapidjson::Value args2(rapidjson::kObjectType);
             args2.AddMember("sort_index", sortIdx, alloc);
             si.AddMember("args", args2, alloc);
@@ -419,17 +421,22 @@ namespace {
                         std::string_view author, std::string_view version,
                         double openMs = 0.0, double closeMs = 0.0) {
             rapidjson::Value ev(rapidjson::kObjectType);
-            ev.AddMember("cat",  rapidjson::StringRef(cat), alloc);
-            ev.AddMember("name", rapidjson::Value(name.data(), static_cast<rapidjson::SizeType>(name.size()), alloc), alloc);
-            ev.AddMember("ph",   rapidjson::StringRef("X"), alloc);
-            ev.AddMember("ts",   tsUs, alloc);
-            ev.AddMember("dur",  std::max(durUs, 0.001), alloc);
-            ev.AddMember("pid",  0, alloc);
-            ev.AddMember("tid",  tid, alloc);
+            ev.AddMember("cat", rapidjson::StringRef(cat), alloc);
+            ev.AddMember("name", rapidjson::Value(name.data(), static_cast<rapidjson::SizeType>(name.size()), alloc),
+                         alloc);
+            ev.AddMember("ph", rapidjson::StringRef("X"), alloc);
+            ev.AddMember("ts", tsUs, alloc);
+            ev.AddMember("dur", std::max(durUs, 0.001), alloc);
+            ev.AddMember("pid", 0, alloc);
+            ev.AddMember("tid", tid, alloc);
             rapidjson::Value args(rapidjson::kObjectType);
-            args.AddMember("author",  rapidjson::Value(author.data(),  static_cast<rapidjson::SizeType>(author.size()),  alloc), alloc);
-            args.AddMember("version", rapidjson::Value(version.data(), static_cast<rapidjson::SizeType>(version.size()), alloc), alloc);
-            if (openMs  > 0.0) args.AddMember("open_ms",  openMs,  alloc);
+            args.AddMember(
+                "author", rapidjson::Value(author.data(), static_cast<rapidjson::SizeType>(author.size()), alloc),
+                alloc);
+            args.AddMember(
+                "version", rapidjson::Value(version.data(), static_cast<rapidjson::SizeType>(version.size()), alloc),
+                alloc);
+            if (openMs > 0.0) args.AddMember("open_ms", openMs, alloc);
             if (closeMs > 0.0) args.AddMember("close_ms", closeMs, alloc);
             ev.AddMember("args", args, alloc);
             events.PushBack(ev, alloc);
@@ -458,7 +465,7 @@ namespace {
 
             // Find the earliest startNs as the trace origin
             uint64_t refNs = UINT64_MAX;
-            for (const auto* r : espRows) {
+            for (const auto r : espRows) {
                 const auto it = entryByName.find(r->module);
                 if (it != entryByName.end() && it->second->startNs > 0)
                     refNs = std::min(refNs, it->second->startNs);
@@ -469,7 +476,7 @@ namespace {
             // a start timestamp that overlaps a preceding slice (Perfetto drops
             // any slice whose ts < prior slice's ts+dur on the same tid).
             double prev_end = 0.0;
-            for (const auto* r : espRows) {
+            for (const auto r : espRows) {
                 const double durUs = std::max(r->totalMs * 1000.0, 0.001);
                 double tsUs = prev_end;
                 if (hasReal) {
@@ -502,14 +509,14 @@ namespace {
             addMeta(tid, trackName, 1 + static_cast<int>(ci));
 
             double tsUs = 0.0;
-            for (const auto* r : dllRows) {
+            for (const auto r : dllRows) {
                 const double durUs = std::max(r->perMsg[idx] * 1000.0, 0.001);
                 addX("DLL", r->module, tsUs, durUs, tid, r->author, r->version);
-                tsUs += durUs;  // durUs already clamped, matches what addX emits
+                tsUs += durUs; // durUs already clamped, matches what addX emits
             }
         }
 
-        doc.AddMember("traceEvents",     events, alloc);
+        doc.AddMember("traceEvents", events, alloc);
         doc.AddMember("displayTimeUnit", rapidjson::StringRef("ms"), alloc);
 
         rapidjson::StringBuffer sb;
@@ -683,7 +690,7 @@ namespace {
             rendered.push_back(std::move(rr));
         }
 
-        for (const auto* row : sortedRows) {
+        for (const auto row : sortedRows) {
             RenderedRow rr;
             rr.module = Ellipsize(row->module, kMaxModuleWidth);
             rr.author = Ellipsize(row->author, kMaxAuthorWidth);
@@ -769,8 +776,8 @@ bool Export::WriteSnapshot(const Format format, std::string& statusMessage) {
     const bool ok = (format == Format::Txt)
                         ? WriteTxt(path, summary, systemInfo, messageNames, exportRows)
                         : (format == Format::Json)
-                            ? WriteJson(path, summary, systemInfo, messageNames, exportRows)
-                            : WriteCsv(path, summary, systemInfo, messageNames, exportRows);
+                        ? WriteJson(path, summary, systemInfo, messageNames, exportRows)
+                        : WriteCsv(path, summary, systemInfo, messageNames, exportRows);
 
     if (ok) {
         statusMessage = BuildSuccessStatus(path);

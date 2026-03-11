@@ -8,8 +8,7 @@ namespace {
     SkyrimVRESLPluginAPI::ISkyrimVRESLInterface002* g_interface = nullptr;
 }
 
-void VRESLIntegration::ConnectIfPresent()
-{
+void VRESLIntegration::ConnectIfPresent() {
     if (!REL::Module::IsVR()) return;
 
     // Try interface 002 first (has plugin load timings).
@@ -21,8 +20,7 @@ void VRESLIntegration::ConnectIfPresent()
     }
 
     // Interface 002 unavailable — check 001 to distinguish outdated VRESL from absent.
-    auto* iface001 = SkyrimVRESLPluginAPI::GetSkyrimVRESLInterface001();
-    if (iface001) {
+    if (const auto iface001 = SkyrimVRESLPluginAPI::GetSkyrimVRESLInterface001()) {
         logger::warn("[VRESLIntegration] SkyrimVRESL detected (build {}) but interface 002 is not available. "
                      "Plugin load timing and file open phase data cannot be imported — "
                      "VRESL's NOP sled kills the hooks at those call sites. "
@@ -32,12 +30,11 @@ void VRESLIntegration::ConnectIfPresent()
     // else: VRESL not installed — silent, all hooks run normally.
 }
 
-void VRESLIntegration::ImportIfPresent()
-{
+void VRESLIntegration::ImportIfPresent() {
     if (!g_interface) return;
 
     uint32_t count = 0;
-    const auto* data = g_interface->GetPluginLoadTimings(&count);
+    const auto data = g_interface->GetPluginLoadTimings(&count);
     logger::info("[VRESLIntegration] GetPluginLoadTimings returned {} entries", count);
     if (!data || count == 0) return;
 
@@ -59,7 +56,8 @@ void VRESLIntegration::ImportIfPresent()
         ESPProfiling::Replace(t.filename, t.totalNs, t.openNs,
                               t.author ? t.author : "",
                               t.version);
-        if (existed) ++replaced; else ++added;
+        if (existed) ++replaced;
+        else ++added;
     }
 
     logger::info("[VRESLIntegration] VRESL timing applied: {} replaced existing, {} added new (total {})",

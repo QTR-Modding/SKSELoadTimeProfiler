@@ -124,7 +124,7 @@ namespace {
             labelWidth = std::max(labelWidth, size.x);
         }
 
-        const auto* style = ImGuiMCP::ImGui::GetStyle();
+        const auto style = ImGuiMCP::ImGui::GetStyle();
         return labelWidth + (style ? style->ItemSpacing.x : 0.0f);
     }
 
@@ -176,7 +176,8 @@ namespace {
         ImGuiMCP::ImGui::SameLine();
         ImGuiMCP::ImGui::SetNextItemWidth(120.0f);
         const auto exportFormatLabel = Localization::MakeLabel("", "export-format");
-        const char* formats[] = {Localization::ExportFormatCsv.c_str(), Localization::ExportFormatTxt.c_str(), Localization::ExportFormatJson.c_str()};
+        const char* formats[] = {Localization::ExportFormatCsv.c_str(), Localization::ExportFormatTxt.c_str(),
+                                 Localization::ExportFormatJson.c_str()};
         ImGuiMCP::ImGui::Combo(exportFormatLabel.c_str(), &s.exportFormat, formats, 3);
 
         if (!s.exportStatus.empty()) {
@@ -505,7 +506,7 @@ namespace {
             const char* displayFmt = s.showSeconds ? "%.2f" : "%.0f";
 
             ImGuiMCP::ImGui::TableNextRow();
-            const auto* totalsBg = ImGuiMCP::ImGui::GetStyleColorVec4(ImGuiMCP::ImGuiCol_TableRowBgAlt);
+            const auto totalsBg = ImGuiMCP::ImGui::GetStyleColorVec4(ImGuiMCP::ImGuiCol_TableRowBgAlt);
             float totalsAlpha = totalsBg ? totalsBg->w + 0.15f : 0.35f;
             totalsAlpha = std::min(totalsAlpha, 0.6f);
             const auto totalsColor = ImGuiMCP::ImGui::GetColorU32(
@@ -527,7 +528,7 @@ namespace {
                 ImGuiMCP::ImGui::Text(displayFmt, v * displayScale);
             }
 
-            static auto* clipper = ImGuiMCP::ImGui::ImGuiListClipperManager::Create();
+            static auto clipper = ImGuiMCP::ImGui::ImGuiListClipperManager::Create();
             if (clipper) {
                 ImGuiMCP::ImGui::ImGuiListClipperManager::Begin(
                     clipper, static_cast<int>(renderRows.rows.size()), 0.0f);

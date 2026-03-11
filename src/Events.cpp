@@ -12,7 +12,7 @@ public:
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event,
                                           RE::BSTEventSource<RE::MenuOpenCloseEvent>*) override;
 
-    bool IsUninstalled() const noexcept { return uninstalled; }
+    [[nodiscard]] bool IsUninstalled() const noexcept { return uninstalled; }
 
 private:
     bool uninstalled = false;
@@ -47,7 +47,8 @@ RE::BSEventNotifyControl MainMenuOpenExportSink::ProcessEvent(const RE::MenuOpen
         logger::info("[Export] Auto-generated CSV{}/TXT{}/JSON{} snapshots on Main Menu open: {}",
                      csvOk ? "" : " failed", txtOk ? "" : " failed", jsonOk ? "" : " failed", status);
     else
-        logger::warn("[Export] Auto-export incomplete on Main Menu open (csv={}, txt={}, json={})", csvOk, txtOk, jsonOk);
+        logger::warn("[Export] Auto-export incomplete on Main Menu open (csv={}, txt={}, json={})", csvOk, txtOk,
+                     jsonOk);
 
     return UnInstall();
 }

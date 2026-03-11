@@ -28,7 +28,7 @@ std::vector<std::pair<std::string, uint64_t>> ESPProfiling::SnapshotTotals() {
 }
 
 void ESPProfiling::Record(const std::string_view espName, const uint64_t ns, const Phase phase,
-                               const std::string_view author, const double version) {
+                          const std::string_view author, const double version) {
     std::lock_guard lk(g_mutex);
     std::string key(espName);
     auto it = g_entries.find(key);
@@ -72,7 +72,7 @@ void ESPProfiling::Replace(const std::string_view espName, const uint64_t ns, co
                            const std::string_view author, const double version) {
     std::lock_guard lk(g_mutex);
     std::string key(espName);
-    auto it = g_entries.find(key);
+    const auto it = g_entries.find(key);
     if (it == g_entries.end()) {
         g_entries.emplace(key, Entry{.name = key,
                                      .author = std::string(author),
@@ -87,9 +87,9 @@ void ESPProfiling::Replace(const std::string_view espName, const uint64_t ns, co
     }
     auto& e = it->second;
     e.totalNs = ns;
-    e.maxNs   = ns;
-    e.count   = 1;
-    e.openNs  = openNs;
+    e.maxNs = ns;
+    e.count = 1;
+    e.openNs = openNs;
     if (e.author.empty() && !author.empty()) e.author.assign(author.data(), author.size());
     if (e.version < 0.0 && version >= 0.0) e.version = version;
 }
