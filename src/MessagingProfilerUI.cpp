@@ -81,7 +81,6 @@ namespace {
     };
 
     struct RenderRows {
-        std::vector<MessagingProfiler::TaggedRow> taggedRows;
         std::vector<RowWrap> rows;
     };
 
@@ -209,9 +208,9 @@ namespace {
         }
     }
 
-    void RenderSummary(const MessagingProfilerUI::State& s) {
+    void RenderSummary(const MessagingProfilerUI::State& s,
+                       const std::vector<MessagingProfiler::TaggedRow>& taggedRows) {
         ImGuiMCP::ImGui::TextUnformatted(Localization::Summary.c_str());
-        const auto taggedRows = MessagingProfiler::GetTaggedRows();
         double totalEspMs = 0.0;
         double totalDllMs = 0.0;
         for (const auto& row : taggedRows) {
@@ -380,19 +379,15 @@ namespace {
         return active;
     }
 
-    RenderRows BuildEnrichedRows(const MessagingProfilerUI::State& s, const std::vector<std::size_t>& active,
-                                 const std::string_view filter, const bool showDllEntries, const bool showEspEntries) {
+    RenderRows BuildEnrichedRows(const MessagingProfilerUI::State& s,
+                                 const std::vector<MessagingProfiler::TaggedRow>& taggedRows,
+                                 const std::vector<std::size_t>& active, const std::string_view filter,
+                                 const bool showDllEntries, const bool showEspEntries) {
         RenderRows result;
-        result.taggedRows = MessagingProfiler::GetTaggedRows();
-
-        std::erase_if(result.taggedRows, [&](const MessagingProfiler::TaggedRow& r) {
-            if (r.kind == MessagingProfiler::SourceKind::DLL && !showDllEntries) return true;
-            if (r.kind == MessagingProfiler::SourceKind::ESP && !showEspEntries) return true;
-            return false;
-        });
-
-        result.rows.reserve(result.taggedRows.size());
-        for (auto& r : result.taggedRows) {
+        result.rows.reserve(taggedRows.size());
+        for (const auto& r : taggedRows) {
+            if (r.kind == MessagingProfiler::SourceKind::DLL && !showDllEntries) continue;
+            if (r.kind == MessagingProfiler::SourceKind::ESP && !showEspEntries) continue;
             if (!filter.empty() && !CaseInsensitiveContains(r.module, filter)) continue;
             double sum = 0.0;
             if (r.kind == MessagingProfiler::SourceKind::ESP) {
@@ -432,7 +427,7 @@ namespace {
     }
 
     void RenderResultsTable(MessagingProfilerUI::State& s, const std::vector<std::string_view>& names,
-                            const double warnMs,
+                            const std::vector<MessagingProfiler::TaggedRow>& taggedRows, const double warnMs,
                             const double critMs, bool& showDllEntries, bool& showEspEntries) {
         ImGuiMCP::ImGui::Separator();
         ImGuiMCP::ImGui::Spacing();
@@ -488,7 +483,7 @@ namespace {
                     s.sortAsc = sortSpecs->Specs[0].SortDirection == ImGuiMCP::ImGuiSortDirection_Ascending;
                 }
 
-            auto renderRows = BuildEnrichedRows(s, active, filter, showDllEntries, showEspEntries);
+            auto renderRows = BuildEnrichedRows(s, taggedRows, active, filter, showDllEntries, showEspEntries);
             std::vector colTotals(active.size(), 0.0);
             for (const auto& e : renderRows.rows)
                 for (std::size_t c = 0; c < active.size(); ++c) {
@@ -590,6 +585,7 @@ namespace {
 
 void MessagingProfilerUI::Render(State& s, double& warnMs, double& critMs, bool& showDllEntries, bool& showEspEntries) {
     const auto names = MessagingProfiler::GetMessageTypeNames();
+    const auto taggedRows = MessagingProfiler::GetTaggedRows();
     EnsureSelectionSize(s, names.size());
 
     if (!s.initializedFromDisk && !s.selected.empty()) {
@@ -603,11 +599,11 @@ void MessagingProfilerUI::Render(State& s, double& warnMs, double& critMs, bool&
         if (!any) std::ranges::fill(s.selected, true);
     }
 
-    RenderSummary(s);
+    RenderSummary(s, taggedRows);
     RenderSummaryActions(s);
     ImGuiMCP::ImGui::Spacing();
     RenderControls(s, names, warnMs, critMs);
-    RenderResultsTable(s, names, warnMs, critMs, showDllEntries, showEspEntries);
+    RenderResultsTable(s, names, taggedRows, warnMs, critMs, showDllEntries, showEspEntries);
 }
 
 void MessagingProfilerUI::ColorCell(const double v, const double warnMs, const double critMs) {
