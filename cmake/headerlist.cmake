@@ -4,6 +4,7 @@ set(headers ${headers}
 	include/Settings.h
 	include/Hooks.h
 	include/ESPProfiling.h
+	include/LoadProfiling.h
 	include/MCP.h
 	include/Events.h
 	include/Export.h
