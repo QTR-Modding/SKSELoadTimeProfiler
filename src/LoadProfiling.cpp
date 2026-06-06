@@ -39,6 +39,7 @@ namespace {
         uint64_t    tNew{0};
         uint64_t    tPost{0};
         uint64_t    tLoadEvent{0};
+        double      papyrusMs{-1.0};
     } g_cur;
 
     const char* KindLabel(const InProgress& c) {
@@ -60,6 +61,7 @@ namespace {
         rec.kind          = KindLabel(c);
         rec.success       = c.success;
         rec.deserializeMs = DiffMs(c.tPre, c.tPost);
+        rec.papyrusMs     = c.papyrusMs;
         rec.menuVisibleMs = DiffMs(c.tMenuOpen, tMenuClose);
         rec.inControlMs   = DiffMs(tStart, c.tLoadEvent);
         rec.postToCloseMs = DiffMs(c.tPost, tMenuClose);
@@ -73,10 +75,10 @@ namespace {
         auto rec = MakeRecord(g_cur, tMenuClose);
         rec.order = g_order.fetch_add(1, std::memory_order_relaxed);
         logger::info(
-            "[LoadProfiler] {} '{}' ({}): deserialize(pre->post)={:.1f}ms, menu-visible={:.1f}ms, "
-            "in-control={:.1f}ms, trailing(post->menuClose)={:.1f}ms",
+            "[LoadProfiler] {} '{}' ({}): deserialize(pre->post)={:.1f}ms (papyrus={:.1f}ms), "
+            "menu-visible={:.1f}ms, in-control={:.1f}ms, trailing(post->menuClose)={:.1f}ms",
             rec.kind, rec.name.empty() ? "<unknown>" : rec.name, rec.success ? "ok" : "FAILED",
-            rec.deserializeMs, rec.menuVisibleMs, rec.inControlMs, rec.postToCloseMs);
+            rec.deserializeMs, rec.papyrusMs, rec.menuVisibleMs, rec.inControlMs, rec.postToCloseMs);
         g_history.push_back(std::move(rec));
         if (g_cur.coldStart) g_seenMainMenu = false;  // we have entered the game
         g_cur = InProgress{};
@@ -181,6 +183,11 @@ void LoadProfiling::OnNewGame() {
     g_cur.sawNew = true;
     g_cur.tNew = now;
     g_cur.coldStart = g_seenMainMenu;
+}
+
+void LoadProfiling::RecordPapyrusRestore(const double ms) {
+    std::lock_guard lk(g_mutex);
+    if (g_cur.active) g_cur.papyrusMs = ms;
 }
 
 void LoadProfiling::OnPostLoadGame(const bool success) {

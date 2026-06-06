@@ -51,12 +51,13 @@ namespace {
                    "In-control = kPreLoadGame -> TESLoadGameEvent (fully loaded).\n"
                    "Trailing = kPostLoadGame -> Loading Menu close (world streaming after deserialize).");
 
-        if (ImGuiMCP::ImGui::BeginTable("##loadtimes", 7,
+        if (ImGuiMCP::ImGui::BeginTable("##loadtimes", 8,
                                         ImGuiMCP::ImGuiTableFlags_RowBg | ImGuiMCP::ImGuiTableFlags_Borders |
                                         ImGuiMCP::ImGuiTableFlags_Resizable | ImGuiMCP::ImGuiTableFlags_ScrollX)) {
             ImGuiMCP::ImGui::TableSetupColumn("Name");
             ImGuiMCP::ImGui::TableSetupColumn("Type");
             ImGuiMCP::ImGui::TableSetupColumn("Deserialize (ms)");
+            ImGuiMCP::ImGui::TableSetupColumn("Papyrus (ms)");
             ImGuiMCP::ImGui::TableSetupColumn("Menu (ms)");
             ImGuiMCP::ImGui::TableSetupColumn("In-control (ms)");
             ImGuiMCP::ImGui::TableSetupColumn("Trailing (ms)");
@@ -72,12 +73,14 @@ namespace {
                 ImGuiMCP::ImGui::TableSetColumnIndex(2);
                 RenderLoadCell(load.deserializeMs);
                 ImGuiMCP::ImGui::TableSetColumnIndex(3);
-                RenderLoadCell(load.menuVisibleMs);
+                RenderLoadCell(load.papyrusMs);
                 ImGuiMCP::ImGui::TableSetColumnIndex(4);
-                RenderLoadCell(load.inControlMs);
+                RenderLoadCell(load.menuVisibleMs);
                 ImGuiMCP::ImGui::TableSetColumnIndex(5);
-                RenderLoadCell(load.postToCloseMs);
+                RenderLoadCell(load.inControlMs);
                 ImGuiMCP::ImGui::TableSetColumnIndex(6);
+                RenderLoadCell(load.postToCloseMs);
+                ImGuiMCP::ImGui::TableSetColumnIndex(7);
                 if (load.success)
                     ImGuiMCP::ImGui::Text("ok");
                 else

@@ -1,5 +1,6 @@
 #include "Hooks.h"
 #include "ESPProfiling.h"
+#include "LoadProfiling.h"
 
 
 namespace {
@@ -38,11 +39,31 @@ namespace {
 void Hooks::Install() {
     auto& trampoline = SKSE::GetTrampoline();
     constexpr size_t size_per_hook = 14;
-    constexpr size_t NUM_TRAMPOLINE_HOOKS = 5;
+    constexpr size_t NUM_TRAMPOLINE_HOOKS = 6;
     trampoline.create(size_per_hook * NUM_TRAMPOLINE_HOOKS);
     TESLoad::Install(trampoline);
     OpenTESHook::Install(trampoline);
     CloseTESHook::Install(trampoline);
+    PapyrusLoadHook::Install(trampoline);
+}
+
+void Hooks::PapyrusLoadHook::Install(SKSE::Trampoline& a_trampoline) {
+    // Wrap the CALL to the SkyrimVM load-game restore inside SkyrimVM::LoadPapyrus.
+    // The VM restore is reached by vtable dispatch (no single entry to detour with the
+    // SKSE trampoline), but LoadPapyrus calls it directly; the call site sits at +0x1d
+    // on SE/AE/VR (disasm-verified). write_call replaces that direct call so we can time
+    // the restore by bracketing the original (returned by write_call).
+    REL::Relocation<std::uintptr_t> callSite{REL::RelocationID(53207, 54018, 53207), 0x1d};
+    originalFunction = a_trampoline.write_call<5>(callSite.address(), thunk);
+    logger::debug("PapyrusLoadHook call site @ {:x}", callSite.address());
+}
+
+std::uintptr_t Hooks::PapyrusLoadHook::thunk(void* a_this, void* a2, void* a3, void* a4) {
+    const auto start = std::chrono::high_resolution_clock::now();
+    auto result = originalFunction(a_this, a2, a3, a4);
+    const auto end = std::chrono::high_resolution_clock::now();
+    LoadProfiling::RecordPapyrusRestore(std::chrono::duration<double, std::milli>(end - start).count());
+    return result;
 }
 
 void Hooks::TESLoad::Install(SKSE::Trampoline& a_trampoline) {
