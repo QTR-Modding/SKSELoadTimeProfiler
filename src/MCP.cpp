@@ -51,10 +51,11 @@ namespace {
                    "In-control = kPreLoadGame -> TESLoadGameEvent (fully loaded).\n"
                    "Trailing = kPostLoadGame -> Loading Menu close (world streaming after deserialize).");
 
-        if (ImGuiMCP::ImGui::BeginTable("##loadtimes", 6,
+        if (ImGuiMCP::ImGui::BeginTable("##loadtimes", 7,
                                         ImGuiMCP::ImGuiTableFlags_RowBg | ImGuiMCP::ImGuiTableFlags_Borders |
                                         ImGuiMCP::ImGuiTableFlags_Resizable | ImGuiMCP::ImGuiTableFlags_ScrollX)) {
-            ImGuiMCP::ImGui::TableSetupColumn("Save");
+            ImGuiMCP::ImGui::TableSetupColumn("Name");
+            ImGuiMCP::ImGui::TableSetupColumn("Type");
             ImGuiMCP::ImGui::TableSetupColumn("Deserialize (ms)");
             ImGuiMCP::ImGui::TableSetupColumn("Menu (ms)");
             ImGuiMCP::ImGui::TableSetupColumn("In-control (ms)");
@@ -67,14 +68,16 @@ namespace {
                 ImGuiMCP::ImGui::TableSetColumnIndex(0);
                 ImGuiMCP::ImGui::Text("%s", load.name.empty() ? "<unknown>" : load.name.c_str());
                 ImGuiMCP::ImGui::TableSetColumnIndex(1);
-                RenderLoadCell(load.deserializeMs);
+                ImGuiMCP::ImGui::Text("%s", load.kind.c_str());
                 ImGuiMCP::ImGui::TableSetColumnIndex(2);
-                RenderLoadCell(load.menuVisibleMs);
+                RenderLoadCell(load.deserializeMs);
                 ImGuiMCP::ImGui::TableSetColumnIndex(3);
-                RenderLoadCell(load.inControlMs);
+                RenderLoadCell(load.menuVisibleMs);
                 ImGuiMCP::ImGui::TableSetColumnIndex(4);
-                RenderLoadCell(load.postToCloseMs);
+                RenderLoadCell(load.inControlMs);
                 ImGuiMCP::ImGui::TableSetColumnIndex(5);
+                RenderLoadCell(load.postToCloseMs);
+                ImGuiMCP::ImGui::TableSetColumnIndex(6);
                 if (load.success)
                     ImGuiMCP::ImGui::Text("ok");
                 else

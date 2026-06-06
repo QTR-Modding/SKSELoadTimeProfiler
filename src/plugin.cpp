@@ -33,6 +33,10 @@ namespace {
                 // msg->data = bool success (end anchor)
                 LoadProfiling::OnPostLoadGame(msg->data != nullptr);
                 break;
+            case SKSE::MessagingInterface::kNewGame:
+                // New game cold start (no save deserialize)
+                LoadProfiling::OnNewGame();
+                break;
             default:
                 break;
         }

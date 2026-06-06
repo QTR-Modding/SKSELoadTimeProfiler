@@ -4,31 +4,34 @@
 #include <string>
 #include <vector>
 
-// Profiles the "load a save -> in the game" pipeline, which is distinct from the
-// initial data-file load the ESP/DLL profilers measure. The core span is fully
+// Profiles the "enter the game" pipeline, which is distinct from the initial
+// data-file load the ESP/DLL profilers measure. The core save-load span is fully
 // SKSE-native (kPreLoadGame -> kPostLoadGame) and needs no RE addresses, so it is
-// VR-safe and version-proof. LoadingMenu and TESLoadGameEvent are recorded as
-// cross-checks to validate the user-perceived boundary.
+// VR-safe and version-proof. LoadingMenu, MainMenu and TESLoadGameEvent are used to
+// bound the user-perceived span and to also capture New Game / coc cold starts that
+// never fire kPreLoadGame.
 namespace LoadProfiling {
     struct LoadRecord {
-        std::string name;            // save file name (from kPreLoadGame)
-        bool        success{true};   // from kPostLoadGame payload
+        std::string name;            // save file name (kPreLoadGame), else label/empty
+        std::string kind;            // "Save", "New game", or "coc/other"
+        bool        success{true};   // from kPostLoadGame payload (save loads)
         // Durations in ms; -1 if the anchor pair was not observed.
-        double deserializeMs{-1.0};  // kPreLoadGame  -> kPostLoadGame     (core SKSE span)
-        double menuVisibleMs{-1.0};  // LoadingMenu open -> close          (user-perceived)
-        double inControlMs{-1.0};    // kPreLoadGame  -> TESLoadGameEvent  (fully loaded)
-        double postToCloseMs{-1.0};  // kPostLoadGame -> LoadingMenu close (trailing world load)
-        uint64_t startNs{0};         // steady_clock ns at kPreLoadGame (trace origin)
+        double deserializeMs{-1.0};  // kPreLoadGame  -> kPostLoadGame     (save only: read + forms + globals)
+        double menuVisibleMs{-1.0};  // LoadingMenu open -> close          (user-perceived, all kinds)
+        double inControlMs{-1.0};    // start anchor  -> TESLoadGameEvent  (save: fully loaded)
+        double postToCloseMs{-1.0};  // kPostLoadGame -> LoadingMenu close (save: trailing world load)
+        uint64_t startNs{0};         // steady_clock ns at the start anchor (trace origin)
         uint64_t order{0};           // load sequence
     };
 
-    // Register LoadingMenu (MenuOpenCloseEvent) and TESLoadGameEvent sinks.
+    // Register LoadingMenu/MainMenu (MenuOpenCloseEvent) and TESLoadGameEvent sinks.
     // Call once UI/event sources exist (kDataLoaded).
     void Install();
 
     // SKSE messaging anchors, driven from the plugin message listener.
-    void OnPreLoadGame(const char* saveName);  // msg->data = save name
-    void OnPostLoadGame(bool success);         // msg->data = bool success
+    void OnPreLoadGame(const char* saveName);  // kPreLoadGame: msg->data = save name
+    void OnPostLoadGame(bool success);         // kPostLoadGame: msg->data = bool success
+    void OnNewGame();                          // kNewGame: starting a brand-new game
 
     std::vector<LoadRecord> Snapshot();
 }
