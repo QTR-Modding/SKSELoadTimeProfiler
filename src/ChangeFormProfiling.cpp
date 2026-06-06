@@ -13,6 +13,15 @@ namespace {
     };
     std::array<Bucket, 256> g_cur;
 
+    // Iteration-timing state (single load thread touches these). The change-form loop
+    // is: read header -> lookup -> Revert/apply -> next header. We attribute the
+    // wall-time between consecutive header reads to the PREVIOUS form (its apply cost).
+    std::atomic<uint64_t> g_lastEntryNs{0};
+    std::atomic<uint8_t>  g_lastLo{0};
+    // Gaps larger than this are loop boundaries (global-data init / cell setup between
+    // the three change-form loops), not a single form -- don't attribute them.
+    constexpr uint64_t kIterGapCutoffNs = 100'000'000;  // 100ms
+
     // Snapshot of the most recently completed load, plus resolved plugin names.
     std::mutex g_lastMutex;
     std::array<std::pair<uint64_t, uint64_t>, 256> g_lastRaw{};  // count, totalNs
@@ -52,15 +61,25 @@ void ChangeFormProfiling::BeginLoad() {
         b.count.store(0, std::memory_order_relaxed);
         b.totalNs.store(0, std::memory_order_relaxed);
     }
+    g_lastEntryNs.store(0, std::memory_order_relaxed);
+    g_lastLo.store(0, std::memory_order_relaxed);
     std::lock_guard lk(g_lastMutex);
     g_lastDirty = true;  // any pending snapshot is stale
 }
 
-void ChangeFormProfiling::RecordForm(uint32_t formID, uint64_t ns) {
+void ChangeFormProfiling::RecordForm(uint32_t formID, uint64_t entryNs) {
     const uint8_t lo = static_cast<uint8_t>(formID >> 24);
-    auto& b = g_cur[lo];
-    b.count.fetch_add(1, std::memory_order_relaxed);
-    b.totalNs.fetch_add(ns, std::memory_order_relaxed);
+    g_cur[lo].count.fetch_add(1, std::memory_order_relaxed);  // count this form
+    // Attribute the elapsed time since the previous form's header read to that form
+    // (its full lookup + apply cost), skipping inter-loop gaps.
+    const uint64_t last = g_lastEntryNs.exchange(entryNs, std::memory_order_relaxed);
+    if (last != 0 && entryNs > last) {
+        const uint64_t delta = entryNs - last;
+        if (delta < kIterGapCutoffNs) {
+            g_cur[g_lastLo.load(std::memory_order_relaxed)].totalNs.fetch_add(delta, std::memory_order_relaxed);
+        }
+    }
+    g_lastLo.store(lo, std::memory_order_relaxed);
 }
 
 namespace {

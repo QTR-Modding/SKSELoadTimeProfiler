@@ -90,18 +90,18 @@ void Hooks::ChangeFormHook::Install(SKSE::Trampoline& a_trampoline) {
 }
 
 namespace {
-    // Wrap-time the per-form header read and attribute by load-order byte. The header
-    // read populates *RCX (BGSLoadFormData::formID is at offset 0) on return; this
-    // thunk reads it after the original returns. Hot path: keep minimal.
+    // Record one change-form loop iteration. The header read populates *RCX
+    // (BGSLoadFormData::formID at offset 0) on return; we capture the entry timestamp
+    // and the decoded FormID, and let ChangeFormProfiling attribute the inter-iteration
+    // delta (the real lookup+apply cost) to the previous form. Hot path: keep minimal.
     inline void RecordOne(void* a_data, void* a_file, Hooks::ChangeFormHook::Fn* orig) {
-        const auto start = std::chrono::high_resolution_clock::now();
+        const uint64_t entryNs = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::steady_clock::now().time_since_epoch())
+                .count());
         orig(a_data, a_file);
-        const auto end = std::chrono::high_resolution_clock::now();
         if (a_data) {
-            const uint32_t formID = *static_cast<const uint32_t*>(a_data);
-            const uint64_t ns =
-                static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
-            ChangeFormProfiling::RecordForm(formID, ns);
+            ChangeFormProfiling::RecordForm(*static_cast<const uint32_t*>(a_data), entryNs);
         }
     }
 }

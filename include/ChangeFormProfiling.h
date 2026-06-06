@@ -18,9 +18,13 @@ namespace ChangeFormProfiling {
     // Reset per-load accumulators. Called at the start of each save load.
     void BeginLoad();
 
-    // Hook callback: record one change-form's per-form time (ns) and FormID.
-    // Called from inside BGSSaveLoadGame::LoadGame, hot path -- keep this minimal.
-    void RecordForm(uint32_t formID, uint64_t ns);
+    // Hook callback, called once per change-form loop iteration with the form's decoded
+    // FormID and the monotonic timestamp (ns) at the header-read entry. The FormID
+    // header read is cheap; the expensive part (LookupFormById + the polymorphic
+    // Revert/apply) runs BEFORE the next header read, so we attribute the wall-time
+    // delta between consecutive iterations to the previous form's plugin -- giving the
+    // real per-mod application cost, not just the header-decode time.
+    void RecordForm(uint32_t formID, uint64_t entryNs);
 
     // Returns the rows for the most recently completed load, sorted by total time.
     // Plugin names are resolved lazily on first call after each load.
