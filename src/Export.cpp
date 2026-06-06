@@ -1,5 +1,8 @@
 #include "Export.h"
+#include "AssetReadProfiling.h"
+#include "ChangeFormProfiling.h"
 #include "ESPProfiling.h"
+#include "LoadProfiling.h"
 #include "Localization.h"
 #include "MCP.h"
 #include "MessagingProfiler.h"
@@ -460,6 +463,137 @@ namespace {
         return totals;
     }
 
+    // ------------------------------------------------------------------------
+    // Save-load profiler export sections (LoadProfiling / ChangeFormProfiling /
+    // AssetReadProfiling). Appended at the end of each output format so the
+    // existing rows stay byte-identical when no save load has been observed.
+    // ------------------------------------------------------------------------
+
+    std::string MsCell(const double ms) {
+        if (ms < 0.0) return "-";
+        return fmt::format("{:.1f}", ms);
+    }
+
+    bool HaveAnyLoadData() {
+        return !LoadProfiling::Snapshot().empty();
+    }
+
+    void AppendLoadCsv(std::ofstream& out) {
+        const auto loads = LoadProfiling::Snapshot();
+        if (loads.empty()) return;
+        out << "\n# Save Loads\n";
+        out << "name,type,deserialize_ms,papyrus_ms,menu_ms,in_control_ms,trailing_ms,result\n";
+        for (const auto& l : loads) {
+            out << EscapeCsv(l.name) << ',' << EscapeCsv(l.kind) << ','
+                << MsCell(l.deserializeMs) << ',' << MsCell(l.papyrusMs) << ','
+                << MsCell(l.menuVisibleMs) << ',' << MsCell(l.inControlMs) << ','
+                << MsCell(l.postToCloseMs) << ',' << (l.success ? "ok" : "FAILED") << "\n";
+        }
+
+        const auto cf = ChangeFormProfiling::SnapshotLast();
+        if (!cf.empty()) {
+            out << "\n# Change-forms by mod (last load)\n";
+            out << "plugin,forms,total_ms\n";
+            for (const auto& r : cf) {
+                out << EscapeCsv(r.plugin) << ',' << r.count << ',' << fmt::format("{:.2f}", r.totalMs) << "\n";
+            }
+        }
+
+        const auto bsa = AssetReadProfiling::SnapshotArchive();
+        const auto loose = AssetReadProfiling::SnapshotLoose();
+        if (bsa.calls || loose.calls) {
+            out << "\n# Asset reads (last load)\n";
+            out << "source,calls,bytes,ms\n";
+            out << "BSA," << bsa.calls << ',' << bsa.bytes << ','
+                << fmt::format("{:.1f}", static_cast<double>(bsa.totalNs) / 1'000'000.0) << "\n";
+            out << "loose," << loose.calls << ',' << loose.bytes << ','
+                << fmt::format("{:.1f}", static_cast<double>(loose.totalNs) / 1'000'000.0) << "\n";
+        }
+    }
+
+    void AppendLoadTxt(std::ofstream& out) {
+        const auto loads = LoadProfiling::Snapshot();
+        if (loads.empty()) return;
+        out << "\nSave Loads\n----------\n";
+        for (const auto& l : loads) {
+            out << fmt::format("  {} ({}): deserialize={}ms (papyrus={}ms), menu={}ms, in-control={}ms, trailing={}ms [{}]\n",
+                               l.name.empty() ? "<unknown>" : l.name, l.kind,
+                               MsCell(l.deserializeMs), MsCell(l.papyrusMs),
+                               MsCell(l.menuVisibleMs), MsCell(l.inControlMs),
+                               MsCell(l.postToCloseMs), l.success ? "ok" : "FAILED");
+        }
+
+        const auto cf = ChangeFormProfiling::SnapshotLast();
+        if (!cf.empty()) {
+            out << "\nChange-forms by mod (last load)\n-------------------------------\n";
+            for (const auto& r : cf) {
+                out << fmt::format("  {:>5} forms  {:>8.2f}ms  {}\n", r.count, r.totalMs, r.plugin);
+            }
+        }
+
+        const auto bsa = AssetReadProfiling::SnapshotArchive();
+        const auto loose = AssetReadProfiling::SnapshotLoose();
+        if (bsa.calls || loose.calls) {
+            out << "\nAsset reads (last load)\n-----------------------\n";
+            out << fmt::format("  BSA:   {:>10} calls  {:>10.2f} MB  {:>8.1f} ms\n",
+                               bsa.calls, static_cast<double>(bsa.bytes) / (1024.0 * 1024.0),
+                               static_cast<double>(bsa.totalNs) / 1'000'000.0);
+            out << fmt::format("  loose: {:>10} calls  {:>10.2f} MB  {:>8.1f} ms\n",
+                               loose.calls, static_cast<double>(loose.bytes) / (1024.0 * 1024.0),
+                               static_cast<double>(loose.totalNs) / 1'000'000.0);
+        }
+    }
+
+    void AddLoadJson(rapidjson::Document& doc, rapidjson::Document::AllocatorType& alloc) {
+        using namespace rapidjson;
+        const auto loads = LoadProfiling::Snapshot();
+        if (!loads.empty()) {
+            Value arr(kArrayType);
+            for (const auto& l : loads) {
+                Value obj(kObjectType);
+                obj.AddMember("name",      Value(l.name.c_str(), alloc), alloc);
+                obj.AddMember("kind",      Value(l.kind.c_str(), alloc), alloc);
+                obj.AddMember("success",   l.success, alloc);
+                obj.AddMember("deserialize_ms",  l.deserializeMs, alloc);
+                obj.AddMember("papyrus_ms",      l.papyrusMs, alloc);
+                obj.AddMember("menu_visible_ms", l.menuVisibleMs, alloc);
+                obj.AddMember("in_control_ms",   l.inControlMs, alloc);
+                obj.AddMember("trailing_ms",     l.postToCloseMs, alloc);
+                arr.PushBack(obj, alloc);
+            }
+            doc.AddMember("saveLoads", arr, alloc);
+        }
+
+        const auto cf = ChangeFormProfiling::SnapshotLast();
+        if (!cf.empty()) {
+            Value arr(kArrayType);
+            for (const auto& r : cf) {
+                Value obj(kObjectType);
+                obj.AddMember("plugin",   Value(r.plugin.c_str(), alloc), alloc);
+                obj.AddMember("forms",    r.count, alloc);
+                obj.AddMember("total_ms", r.totalMs, alloc);
+                arr.PushBack(obj, alloc);
+            }
+            doc.AddMember("changeFormsByMod", arr, alloc);
+        }
+
+        const auto bsa = AssetReadProfiling::SnapshotArchive();
+        const auto loose = AssetReadProfiling::SnapshotLoose();
+        if (bsa.calls || loose.calls) {
+            Value reads(kObjectType);
+            auto addSource = [&](const char* name, const AssetReadProfiling::Stats& s) {
+                Value v(kObjectType);
+                v.AddMember("calls", s.calls, alloc);
+                v.AddMember("bytes", s.bytes, alloc);
+                v.AddMember("ms", static_cast<double>(s.totalNs) / 1'000'000.0, alloc);
+                reads.AddMember(StringRef(name), v, alloc);
+            };
+            addSource("bsa", bsa);
+            addSource("loose", loose);
+            doc.AddMember("assetReads", reads, alloc);
+        }
+    }
+
     // Writes a Chrome Trace Format JSON readable by Perfetto (ui.perfetto.dev),
     // chrome://tracing, and speedscope. Each ESP plugin and DLL callback message type
     // gets its own Perfetto track (tid). ESP events use real steady_clock timestamps
@@ -600,6 +734,8 @@ namespace {
         doc.AddMember("traceEvents", events, alloc);
         doc.AddMember("displayTimeUnit", rapidjson::StringRef("ms"), alloc);
 
+        AddLoadJson(doc, alloc);
+
         rapidjson::StringBuffer sb;
         rapidjson::Writer wr(sb);
         doc.Accept(wr);
@@ -684,6 +820,7 @@ namespace {
             out << "\n";
         }
 
+        AppendLoadCsv(out);
         return true;
     }
 
@@ -830,6 +967,7 @@ namespace {
             out << "\n";
         }
 
+        AppendLoadTxt(out);
         return true;
     }
 

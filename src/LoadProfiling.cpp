@@ -2,6 +2,7 @@
 
 #include "AssetReadProfiling.h"
 #include "ChangeFormProfiling.h"
+#include "Export.h"
 #include "REX/REX/Singleton.h"
 
 #include <atomic>
@@ -20,7 +21,9 @@ namespace {
         return static_cast<double>(to - from) / 1'000'000.0;
     }
 
-    std::mutex g_mutex;
+    // Recursive so a post-load Export::WriteSnapshot call (from FinalizeLocked) can
+    // re-enter LoadProfiling::Snapshot to assemble the save-load section of the export.
+    std::recursive_mutex g_mutex;
     std::vector<LoadProfiling::LoadRecord> g_history;
     std::atomic<uint64_t> g_order{0};
     bool g_seenMainMenu{false};  // at the Main Menu and not yet entered the game (cold start pending)
@@ -106,6 +109,23 @@ namespace {
                 static_cast<double>(bsa.totalNs) / 1'000'000.0,
                 loose.calls, static_cast<double>(loose.bytes) / (1024.0 * 1024.0),
                 static_cast<double>(loose.totalNs) / 1'000'000.0);
+        }
+
+        // Auto-export a snapshot after every save load so the per-load CSV/TXT/JSON
+        // captures the data we just recorded (the menu-open auto-export only fires
+        // once at startup and would miss save loads). Skip for non-save kinds since
+        // those don't accumulate change-form / asset-read data.
+        if (rec.kind == "Save") {
+            std::string status;
+            const bool csvOk = Export::WriteSnapshot(Export::Format::Csv, status);
+            const bool txtOk = Export::WriteSnapshot(Export::Format::Txt, status);
+            const bool jsonOk = Export::WriteSnapshot(Export::Format::Json, status);
+            if (csvOk && txtOk && jsonOk) {
+                logger::info("[LoadProfiler] post-load snapshot exported: {}", status);
+            } else {
+                logger::warn("[LoadProfiler] post-load export incomplete (csv={}, txt={}, json={})",
+                             csvOk, txtOk, jsonOk);
+            }
         }
         g_history.push_back(std::move(rec));
         if (g_cur.coldStart) g_seenMainMenu = false;  // we have entered the game
