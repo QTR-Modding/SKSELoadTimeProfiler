@@ -163,6 +163,13 @@ namespace {
                 if (g_cur.active) {
                     g_cur.tMenuOpen = now;
                     g_cur.coldStart = g_cur.coldStart || cold;
+                    // A pure cold start (coc) fires no kPreLoadGame/kNewGame, so the
+                    // accumulators were never begun for this window: start them at menu
+                    // open (resets stale startup reads and sets the TSC calibration anchor).
+                    if (cold && !g_cur.sawPre && !g_cur.sawNew) {
+                        ChangeFormProfiling::BeginLoad();
+                        AssetReadProfiling::BeginLoad();
+                    }
                 }
             } else if (g_cur.active) {
                 // Capture only real entries into the game; drop in-game cell transitions.
@@ -226,6 +233,8 @@ void LoadProfiling::OnPreLoadGame(const char* saveName) {
 
 void LoadProfiling::OnNewGame() {
     const uint64_t now = NowNs();
+    ChangeFormProfiling::BeginLoad();  // new game has no change-forms, but reset for cleanliness
+    AssetReadProfiling::BeginLoad();   // scope asset reads to the new-game window + set TSC anchor
     std::lock_guard lk(g_mutex);
     if (g_cur.active) FinalizeLocked(0);
     g_cur = InProgress{};
