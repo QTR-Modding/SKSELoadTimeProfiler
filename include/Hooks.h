@@ -69,6 +69,23 @@ namespace Hooks {
         static inline REL::Relocation<Fn> originalFunction2;
     };
 
+    // Brackets the global-data load span inside BGSSaveLoadGame::LoadGame: write_call on
+    // the FIRST InitGlobalData call and the LAST FinishLoadGlobalData call. Combined with
+    // the change-form timestamps, this splits post-form into global-data vs cell/3D.
+    // Offsets verified SE/AE/VR (VR resolved via the SE<->VR Version-Tracking mapping --
+    // the calls live in LoadGame on all three; VR's were just missing from its ref DB).
+    class GlobalDataHook {
+    public:
+        static void Install(SKSE::Trampoline& a_trampoline);
+
+    private:
+        using Fn = std::uintptr_t(void* a1, void* a2, void* a3, void* a4);
+        static std::uintptr_t initThunk(void* a1, void* a2, void* a3, void* a4);
+        static std::uintptr_t finishThunk(void* a1, void* a2, void* a3, void* a4);
+        static inline REL::Relocation<Fn> originalInit;
+        static inline REL::Relocation<Fn> originalFinish;
+    };
+
     // Vtable detours on BSResource::ArchiveStream::DoRead and ::LooseFileStream::DoRead.
     // CompressedArchiveStream shares ArchiveStream's read vfunc, so a single Archive
     // hook covers all BSA reads (compressed and uncompressed). Tracks bytes + time per

@@ -42,14 +42,37 @@ namespace {
 void Hooks::Install() {
     auto& trampoline = SKSE::GetTrampoline();
     constexpr size_t size_per_hook = 14;
-    constexpr size_t NUM_TRAMPOLINE_HOOKS = 9;  // 5 ESP + 1 Papyrus + 3 change-form
+    constexpr size_t NUM_TRAMPOLINE_HOOKS = 11;  // 5 ESP + 1 Papyrus + 3 change-form + 2 global-data
     trampoline.create(size_per_hook * NUM_TRAMPOLINE_HOOKS);
     TESLoad::Install(trampoline);
     OpenTESHook::Install(trampoline);
     CloseTESHook::Install(trampoline);
     PapyrusLoadHook::Install(trampoline);
     ChangeFormHook::Install(trampoline);
+    GlobalDataHook::Install(trampoline);
     AssetReadHook::Install();
+}
+
+void Hooks::GlobalDataHook::Install(SKSE::Trampoline& a_trampoline) {
+    // First InitGlobalData call = global-data start; last FinishLoadGlobalData = end.
+    REL::Relocation<std::uintptr_t> loadGame{REL::RelocationID(34677, 35600)};
+    const auto base = loadGame.address();
+    const auto firstInit  = REL::Relocate<std::uintptr_t>(0x8fe, 0x968, 0x8f6);
+    const auto lastFinish = REL::Relocate<std::uintptr_t>(0x946, 0x9b0, 0x93e);
+    originalInit   = a_trampoline.write_call<5>(base + firstInit, initThunk);
+    originalFinish = a_trampoline.write_call<5>(base + lastFinish, finishThunk);
+    logger::debug("GlobalDataHook init@{:x} finish@{:x}", base + firstInit, base + lastFinish);
+}
+
+std::uintptr_t Hooks::GlobalDataHook::initThunk(void* a1, void* a2, void* a3, void* a4) {
+    LoadProfiling::OnGlobalDataStart();  // first InitGlobalData = global-data begins
+    return originalInit(a1, a2, a3, a4);
+}
+
+std::uintptr_t Hooks::GlobalDataHook::finishThunk(void* a1, void* a2, void* a3, void* a4) {
+    auto result = originalFinish(a1, a2, a3, a4);
+    LoadProfiling::OnGlobalDataEnd();  // last FinishLoadGlobalData = global-data done
+    return result;
 }
 
 void Hooks::PapyrusLoadHook::Install(SKSE::Trampoline& a_trampoline) {

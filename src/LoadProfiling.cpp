@@ -44,6 +44,8 @@ namespace {
         uint64_t    tNew{0};
         uint64_t    tPost{0};
         uint64_t    tLoadEvent{0};
+        uint64_t    tGlobalStart{0};
+        uint64_t    tGlobalEnd{0};
         double      papyrusMs{-1.0};
     } g_cur;
 
@@ -73,6 +75,9 @@ namespace {
         rec.preFormMs  = DiffMs(c.tPre, firstForm);
         rec.formSpanMs = DiffMs(firstForm, lastForm);
         rec.postFormMs = DiffMs(lastForm, c.tPost);
+        rec.globalDataMs = DiffMs(c.tGlobalStart, c.tGlobalEnd);
+        if (rec.postFormMs >= 0.0 && rec.globalDataMs >= 0.0)
+            rec.postFormOtherMs = rec.postFormMs - rec.globalDataMs;  // tail outside global-data span
         rec.menuVisibleMs = DiffMs(c.tMenuOpen, tMenuClose);
         rec.inControlMs   = DiffMs(tStart, c.tLoadEvent);
         rec.postToCloseMs = DiffMs(c.tPost, tMenuClose);
@@ -94,8 +99,10 @@ namespace {
         // Deserialize decomposition: where the load time actually goes.
         if (rec.kind == "Save") {
             logger::info("[LoadProfiler]   deserialize phases: pre-form(read+mods)={:.1f}ms, "
-                         "change-forms(loops)={:.1f}ms, post-form(globals+cell)={:.1f}ms (papyrus={:.1f}ms)",
-                         rec.preFormMs, rec.formSpanMs, rec.postFormMs, rec.papyrusMs);
+                         "change-forms(loops)={:.1f}ms, global-data(incl cells/refs/3D)={:.1f}ms "
+                         "(papyrus={:.1f}ms), post-form-tail={:.1f}ms",
+                         rec.preFormMs, rec.formSpanMs, rec.globalDataMs, rec.papyrusMs,
+                         rec.postFormOtherMs);
         }
 
         // Top mods by change-form deserialize cost (per-mod attribution).
@@ -260,6 +267,18 @@ void LoadProfiling::OnNewGame() {
 void LoadProfiling::RecordPapyrusRestore(const double ms) {
     std::lock_guard lk(g_mutex);
     if (g_cur.active) g_cur.papyrusMs = ms;
+}
+
+void LoadProfiling::OnGlobalDataStart() {
+    const uint64_t now = NowNs();
+    std::lock_guard lk(g_mutex);
+    if (g_cur.active && g_cur.tGlobalStart == 0) g_cur.tGlobalStart = now;  // first InitGlobalData
+}
+
+void LoadProfiling::OnGlobalDataEnd() {
+    const uint64_t now = NowNs();
+    std::lock_guard lk(g_mutex);
+    if (g_cur.active) g_cur.tGlobalEnd = now;  // last FinishLoadGlobalData (overwrites; last wins)
 }
 
 void LoadProfiling::OnPostLoadGame(const bool success) {
