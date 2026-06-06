@@ -67,6 +67,12 @@ namespace {
         rec.success       = c.success;
         rec.deserializeMs = DiffMs(c.tPre, c.tPost);
         rec.papyrusMs     = c.papyrusMs;
+        // Deserialize sub-phases from change-form header timestamps (same steady clock).
+        const uint64_t firstForm = ChangeFormProfiling::FirstFormNs();
+        const uint64_t lastForm  = ChangeFormProfiling::LastFormNs();
+        rec.preFormMs  = DiffMs(c.tPre, firstForm);
+        rec.formSpanMs = DiffMs(firstForm, lastForm);
+        rec.postFormMs = DiffMs(lastForm, c.tPost);
         rec.menuVisibleMs = DiffMs(c.tMenuOpen, tMenuClose);
         rec.inControlMs   = DiffMs(tStart, c.tLoadEvent);
         rec.postToCloseMs = DiffMs(c.tPost, tMenuClose);
@@ -84,6 +90,13 @@ namespace {
             "menu-visible={:.1f}ms, in-control={:.1f}ms, trailing(post->menuClose)={:.1f}ms",
             rec.kind, rec.name.empty() ? "<unknown>" : rec.name, rec.success ? "ok" : "FAILED",
             rec.deserializeMs, rec.papyrusMs, rec.menuVisibleMs, rec.inControlMs, rec.postToCloseMs);
+
+        // Deserialize decomposition: where the load time actually goes.
+        if (rec.kind == "Save") {
+            logger::info("[LoadProfiler]   deserialize phases: pre-form(read+mods)={:.1f}ms, "
+                         "change-forms(loops)={:.1f}ms, post-form(globals+cell)={:.1f}ms (papyrus={:.1f}ms)",
+                         rec.preFormMs, rec.formSpanMs, rec.postFormMs, rec.papyrusMs);
+        }
 
         // Top mods by change-form deserialize cost (per-mod attribution).
         if (rec.kind == "Save") {

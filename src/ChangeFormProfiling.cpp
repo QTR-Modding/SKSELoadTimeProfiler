@@ -18,6 +18,7 @@ namespace {
     // wall-time between consecutive header reads to the PREVIOUS form (its apply cost).
     std::atomic<uint64_t> g_lastEntryNs{0};
     std::atomic<uint8_t>  g_lastLo{0};
+    std::atomic<uint64_t> g_firstEntryNs{0};  // first change-form header of the load
     // Gaps larger than this are loop boundaries (global-data init / cell setup between
     // the three change-form loops), not a single form -- don't attribute them.
     constexpr uint64_t kIterGapCutoffNs = 100'000'000;  // 100ms
@@ -63,12 +64,15 @@ void ChangeFormProfiling::BeginLoad() {
     }
     g_lastEntryNs.store(0, std::memory_order_relaxed);
     g_lastLo.store(0, std::memory_order_relaxed);
+    g_firstEntryNs.store(0, std::memory_order_relaxed);
     std::lock_guard lk(g_lastMutex);
     g_lastDirty = true;  // any pending snapshot is stale
 }
 
 void ChangeFormProfiling::RecordForm(uint32_t formID, uint64_t entryNs) {
     const uint8_t lo = static_cast<uint8_t>(formID >> 24);
+    uint64_t expected = 0;
+    g_firstEntryNs.compare_exchange_strong(expected, entryNs, std::memory_order_relaxed);  // set once
     g_cur[lo].count.fetch_add(1, std::memory_order_relaxed);  // count this form
     // Attribute the elapsed time since the previous form's header read to that form
     // (its full lookup + apply cost), skipping inter-loop gaps.
@@ -128,3 +132,6 @@ double ChangeFormProfiling::LastTotalMs() {
     for (auto& b : g_cur) total += b.totalNs.load(std::memory_order_relaxed);
     return static_cast<double>(total) / 1'000'000.0;
 }
+
+uint64_t ChangeFormProfiling::FirstFormNs() { return g_firstEntryNs.load(std::memory_order_relaxed); }
+uint64_t ChangeFormProfiling::LastFormNs()  { return g_lastEntryNs.load(std::memory_order_relaxed); }

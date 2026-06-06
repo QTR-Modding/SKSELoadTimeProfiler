@@ -33,4 +33,12 @@ namespace ChangeFormProfiling {
     // Sum across all plugins for the most recently completed load.
     uint64_t LastTotalCount();
     double   LastTotalMs();
+
+    // steady_clock ns at the first / last change-form header read of the current load
+    // (0 if none). Same clock as LoadProfiling, used to derive deserialize sub-phases:
+    //   pre-form  = kPreLoadGame -> FirstFormNs (file read + LoadMods)
+    //   forms     = FirstFormNs  -> LastFormNs  (change-form loops)
+    //   post-form = LastFormNs   -> kPostLoadGame (global data + cell/3D + Papyrus)
+    uint64_t FirstFormNs();
+    uint64_t LastFormNs();
 }

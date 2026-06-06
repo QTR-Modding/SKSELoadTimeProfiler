@@ -17,7 +17,11 @@ namespace LoadProfiling {
         bool        success{true};   // from kPostLoadGame payload (save loads)
         // Durations in ms; -1 if the anchor pair was not observed.
         double deserializeMs{-1.0};  // kPreLoadGame  -> kPostLoadGame     (save only: read + forms + globals)
-        double papyrusMs{-1.0};      // Papyrus/SkyrimVM script-state restore (sub-phase of deserialize)
+        // Deserialize sub-phases (save only), derived from change-form header timestamps:
+        double preFormMs{-1.0};      // kPreLoadGame -> first change-form  (file read + LoadMods)
+        double formSpanMs{-1.0};     // first -> last change-form          (change-form loops, wall-clock)
+        double postFormMs{-1.0};     // last change-form -> kPostLoadGame  (global data + cell/3D load)
+        double papyrusMs{-1.0};      // Papyrus/SkyrimVM script-state restore (within post-form)
         double menuVisibleMs{-1.0};  // LoadingMenu open -> close          (user-perceived, all kinds)
         double inControlMs{-1.0};    // start anchor  -> TESLoadGameEvent  (save: fully loaded)
         double postToCloseMs{-1.0};  // kPostLoadGame -> LoadingMenu close (save: trailing world load)
