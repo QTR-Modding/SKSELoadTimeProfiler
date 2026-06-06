@@ -1,5 +1,6 @@
 #include "LoadProfiling.h"
 
+#include "ChangeFormProfiling.h"
 #include "REX/REX/Singleton.h"
 
 #include <atomic>
@@ -79,6 +80,20 @@ namespace {
             "menu-visible={:.1f}ms, in-control={:.1f}ms, trailing(post->menuClose)={:.1f}ms",
             rec.kind, rec.name.empty() ? "<unknown>" : rec.name, rec.success ? "ok" : "FAILED",
             rec.deserializeMs, rec.papyrusMs, rec.menuVisibleMs, rec.inControlMs, rec.postToCloseMs);
+
+        // Top mods by change-form deserialize cost (per-mod attribution).
+        if (rec.kind == "Save") {
+            const auto rows = ChangeFormProfiling::SnapshotLast();
+            if (!rows.empty()) {
+                logger::info("[LoadProfiler]   change-forms: {} forms, {:.1f}ms total; top mods:",
+                             ChangeFormProfiling::LastTotalCount(), ChangeFormProfiling::LastTotalMs());
+                const std::size_t topN = std::min<std::size_t>(rows.size(), 10);
+                for (std::size_t i = 0; i < topN; ++i) {
+                    const auto& r = rows[i];
+                    logger::info("[LoadProfiler]     {:>5} forms  {:>8.2f}ms  {}", r.count, r.totalMs, r.plugin);
+                }
+            }
+        }
         g_history.push_back(std::move(rec));
         if (g_cur.coldStart) g_seenMainMenu = false;  // we have entered the game
         g_cur = InProgress{};
@@ -164,6 +179,7 @@ void LoadProfiling::Install() {
 
 void LoadProfiling::OnPreLoadGame(const char* saveName) {
     const uint64_t now = NowNs();
+    ChangeFormProfiling::BeginLoad();  // reset per-mod attribution accumulators
     std::lock_guard lk(g_mutex);
     if (g_cur.active) FinalizeLocked(0);  // flush a prior load that never saw its menu close
     g_cur = InProgress{};

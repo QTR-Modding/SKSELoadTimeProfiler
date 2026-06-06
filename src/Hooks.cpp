@@ -1,4 +1,6 @@
 #include "Hooks.h"
+
+#include "ChangeFormProfiling.h"
 #include "ESPProfiling.h"
 #include "LoadProfiling.h"
 
@@ -39,12 +41,13 @@ namespace {
 void Hooks::Install() {
     auto& trampoline = SKSE::GetTrampoline();
     constexpr size_t size_per_hook = 14;
-    constexpr size_t NUM_TRAMPOLINE_HOOKS = 6;
+    constexpr size_t NUM_TRAMPOLINE_HOOKS = 9;  // 5 ESP + 1 Papyrus + 3 change-form
     trampoline.create(size_per_hook * NUM_TRAMPOLINE_HOOKS);
     TESLoad::Install(trampoline);
     OpenTESHook::Install(trampoline);
     CloseTESHook::Install(trampoline);
     PapyrusLoadHook::Install(trampoline);
+    ChangeFormHook::Install(trampoline);
 }
 
 void Hooks::PapyrusLoadHook::Install(SKSE::Trampoline& a_trampoline) {
@@ -65,6 +68,51 @@ std::uintptr_t Hooks::PapyrusLoadHook::thunk(void* a_this, void* a2, void* a3, v
     LoadProfiling::RecordPapyrusRestore(std::chrono::duration<double, std::milli>(end - start).count());
     return result;
 }
+
+void Hooks::ChangeFormHook::Install(SKSE::Trampoline& a_trampoline) {
+    // Three direct CALL sites in BGSSaveLoadGame::LoadGame target the change-form
+    // header read: main change-form loop (+0x3d0 SE / +0x440 AE), deferred-changes
+    // path (+0x71a SE / +0x78a AE), and post-error retry (+0x770 SE / +0x7e0 AE).
+    // No VR support yet -- VR ids for LoadGame's call sites aren't in the cross-db.
+    if (REL::Module::IsVR()) {
+        logger::info("ChangeFormHook: VR not supported (no resolved VR ids)");
+        return;
+    }
+    REL::Relocation<std::uintptr_t> loadGame{REL::RelocationID(34677, 35600)};
+    const auto base = loadGame.address();
+    const auto offset0 = REL::Relocate(static_cast<std::uintptr_t>(0x3d0),
+                                       static_cast<std::uintptr_t>(0x440));
+    const auto offset1 = REL::Relocate(static_cast<std::uintptr_t>(0x71a),
+                                       static_cast<std::uintptr_t>(0x78a));
+    const auto offset2 = REL::Relocate(static_cast<std::uintptr_t>(0x770),
+                                       static_cast<std::uintptr_t>(0x7e0));
+    originalFunction0 = a_trampoline.write_call<5>(base + offset0, thunk0);
+    originalFunction1 = a_trampoline.write_call<5>(base + offset1, thunk1);
+    originalFunction2 = a_trampoline.write_call<5>(base + offset2, thunk2);
+    logger::debug("ChangeFormHook call sites @ {:x}, {:x}, {:x}",
+                  base + offset0, base + offset1, base + offset2);
+}
+
+namespace {
+    // Wrap-time the per-form header read and attribute by load-order byte. The header
+    // read populates *RCX (BGSLoadFormData::formID is at offset 0) on return; this
+    // thunk reads it after the original returns. Hot path: keep minimal.
+    inline void RecordOne(void* a_data, void* a_file, Hooks::ChangeFormHook::Fn* orig) {
+        const auto start = std::chrono::high_resolution_clock::now();
+        orig(a_data, a_file);
+        const auto end = std::chrono::high_resolution_clock::now();
+        if (a_data) {
+            const uint32_t formID = *static_cast<const uint32_t*>(a_data);
+            const uint64_t ns =
+                static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+            ChangeFormProfiling::RecordForm(formID, ns);
+        }
+    }
+}
+
+void Hooks::ChangeFormHook::thunk0(void* a_data, void* a_file) { RecordOne(a_data, a_file, originalFunction0.get()); }
+void Hooks::ChangeFormHook::thunk1(void* a_data, void* a_file) { RecordOne(a_data, a_file, originalFunction1.get()); }
+void Hooks::ChangeFormHook::thunk2(void* a_data, void* a_file) { RecordOne(a_data, a_file, originalFunction2.get()); }
 
 void Hooks::TESLoad::Install(SKSE::Trampoline& a_trampoline) {
     // VR: ConstructObjectList is called from CompileFiles (ID 13645) at +0x2c3.

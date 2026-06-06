@@ -3,6 +3,7 @@ set(sources ${sources}
 	src/Utils.cpp
 	src/Settings.cpp
 	src/Hooks.cpp
+	src/ChangeFormProfiling.cpp
 	src/ESPProfiling.cpp
 	src/LoadProfiling.cpp
 	src/MCP.cpp
