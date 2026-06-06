@@ -73,21 +73,15 @@ std::uintptr_t Hooks::PapyrusLoadHook::thunk(void* a_this, void* a2, void* a3, v
 
 void Hooks::ChangeFormHook::Install(SKSE::Trampoline& a_trampoline) {
     // Three direct CALL sites in BGSSaveLoadGame::LoadGame target the change-form
-    // header read: main change-form loop (+0x3d0 SE / +0x440 AE), deferred-changes
-    // path (+0x71a SE / +0x78a AE), and post-error retry (+0x770 SE / +0x7e0 AE).
-    // No VR support yet -- VR ids for LoadGame's call sites aren't in the cross-db.
-    if (REL::Module::IsVR()) {
-        logger::info("ChangeFormHook: VR not supported (no resolved VR ids)");
-        return;
-    }
+    // header read: main change-form loop (+0x3d0 SE/AE/VR -- wait, AE 0x440),
+    // deferred-changes path, and post-error retry. Offsets differ slightly per runtime
+    // (call-site displacements, verified in Ghidra). LoadGame resolves on VR via the SE
+    // id 34677 (added to the VR address library / database.csv).
     REL::Relocation<std::uintptr_t> loadGame{REL::RelocationID(34677, 35600)};
     const auto base = loadGame.address();
-    const auto offset0 = REL::Relocate(static_cast<std::uintptr_t>(0x3d0),
-                                       static_cast<std::uintptr_t>(0x440));
-    const auto offset1 = REL::Relocate(static_cast<std::uintptr_t>(0x71a),
-                                       static_cast<std::uintptr_t>(0x78a));
-    const auto offset2 = REL::Relocate(static_cast<std::uintptr_t>(0x770),
-                                       static_cast<std::uintptr_t>(0x7e0));
+    const auto offset0 = REL::Relocate<std::uintptr_t>(0x3d0, 0x440, 0x3d0);
+    const auto offset1 = REL::Relocate<std::uintptr_t>(0x71a, 0x78a, 0x712);
+    const auto offset2 = REL::Relocate<std::uintptr_t>(0x770, 0x7e0, 0x768);
     originalFunction0 = a_trampoline.write_call<5>(base + offset0, thunk0);
     originalFunction1 = a_trampoline.write_call<5>(base + offset1, thunk1);
     originalFunction2 = a_trampoline.write_call<5>(base + offset2, thunk2);
@@ -117,20 +111,16 @@ void Hooks::ChangeFormHook::thunk1(void* a_data, void* a_file) { RecordOne(a_dat
 void Hooks::ChangeFormHook::thunk2(void* a_data, void* a_file) { RecordOne(a_data, a_file, originalFunction2.get()); }
 
 void Hooks::AssetReadHook::Install() {
-    if (REL::Module::IsVR()) {
-        logger::info("AssetReadHook: VR not supported (no resolved VR ids)");
-        return;
-    }
-    // ArchiveStream vtable: SE id 285761 / AE id 236985, DoRead at slot 6 (both).
-    // The AE Address Library indexes by vtable START for this one, like SE.
+    // ArchiveStream vtable: DoRead at slot 6. SE id 285761 / AE id 236985 both index the
+    // vtable start; VR resolves via the SE id (285761, present in the VR address library)
+    // and is also slot 6 (DB vtable 0x1417ec318, DoRead 0x1417ec348).
     {
         REL::Relocation<std::uintptr_t> vtbl{REL::RelocationID(285761, 236985)};
         originalArchive = vtbl.write_vfunc(6, archiveThunk);
         logger::debug("AssetReadHook archive vtable @ {:x}, slot 6", vtbl.address());
     }
-    // LooseFileStream vtable: SE id 285903 indexes the vtable start (DoRead at slot 6);
-    // AE id 332171 indexes the DoRead entry directly (slot 0). Same Relocation type, but
-    // the slot index differs per runtime.
+    // LooseFileStream vtable: SE id 285903 and VR (via 285903) index the vtable start,
+    // DoRead at slot 6; the AE id 332171 indexes the DoRead entry directly (slot 0).
     {
         REL::Relocation<std::uintptr_t> vtbl{REL::RelocationID(285903, 332171)};
         const size_t slot = REL::Module::IsAE() ? 0 : 6;
