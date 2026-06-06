@@ -68,4 +68,24 @@ namespace Hooks {
         static inline REL::Relocation<Fn> originalFunction1;
         static inline REL::Relocation<Fn> originalFunction2;
     };
+
+    // Vtable detours on BSResource::ArchiveStream::DoRead and ::LooseFileStream::DoRead.
+    // CompressedArchiveStream shares ArchiveStream's read vfunc, so a single Archive
+    // hook covers all BSA reads (compressed and uncompressed). Tracks bytes + time per
+    // source, so users can see the BSA-vs-loose breakdown for a save load.
+    class AssetReadHook {
+    public:
+        // DoRead vfunc: returns a 32-bit status enum; args via Microsoft x64 calling
+        // convention. R9 holds a uint64* that's WRITTEN with actual-bytes-read on
+        // return -- read it after invoking the original.
+        using DoReadFn = uint32_t(void* a_this, void* a_buffer, uint64_t a_count, uint64_t* a_bytesRead);
+
+        static void Install();
+
+    private:
+        static uint32_t archiveThunk(void* a_this, void* a_buf, uint64_t a_count, uint64_t* a_br);
+        static uint32_t looseThunk(void* a_this, void* a_buf, uint64_t a_count, uint64_t* a_br);
+        static inline REL::Relocation<DoReadFn> originalArchive;
+        static inline REL::Relocation<DoReadFn> originalLoose;
+    };
 };

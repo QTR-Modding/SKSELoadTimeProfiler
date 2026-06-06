@@ -1,5 +1,6 @@
 #include "Hooks.h"
 
+#include "AssetReadProfiling.h"
 #include "ChangeFormProfiling.h"
 #include "ESPProfiling.h"
 #include "LoadProfiling.h"
@@ -48,6 +49,7 @@ void Hooks::Install() {
     CloseTESHook::Install(trampoline);
     PapyrusLoadHook::Install(trampoline);
     ChangeFormHook::Install(trampoline);
+    AssetReadHook::Install();
 }
 
 void Hooks::PapyrusLoadHook::Install(SKSE::Trampoline& a_trampoline) {
@@ -113,6 +115,49 @@ namespace {
 void Hooks::ChangeFormHook::thunk0(void* a_data, void* a_file) { RecordOne(a_data, a_file, originalFunction0.get()); }
 void Hooks::ChangeFormHook::thunk1(void* a_data, void* a_file) { RecordOne(a_data, a_file, originalFunction1.get()); }
 void Hooks::ChangeFormHook::thunk2(void* a_data, void* a_file) { RecordOne(a_data, a_file, originalFunction2.get()); }
+
+void Hooks::AssetReadHook::Install() {
+    if (REL::Module::IsVR()) {
+        logger::info("AssetReadHook: VR not supported (no resolved VR ids)");
+        return;
+    }
+    // ArchiveStream vtable: SE id 285761 / AE id 236985, DoRead at slot 6 (both).
+    // The AE Address Library indexes by vtable START for this one, like SE.
+    {
+        REL::Relocation<std::uintptr_t> vtbl{REL::RelocationID(285761, 236985)};
+        originalArchive = vtbl.write_vfunc(6, archiveThunk);
+        logger::debug("AssetReadHook archive vtable @ {:x}, slot 6", vtbl.address());
+    }
+    // LooseFileStream vtable: SE id 285903 indexes the vtable start (DoRead at slot 6);
+    // AE id 332171 indexes the DoRead entry directly (slot 0). Same Relocation type, but
+    // the slot index differs per runtime.
+    {
+        REL::Relocation<std::uintptr_t> vtbl{REL::RelocationID(285903, 332171)};
+        const size_t slot = REL::Module::IsAE() ? 0 : 6;
+        originalLoose = vtbl.write_vfunc(slot, looseThunk);
+        logger::debug("AssetReadHook loose vtable @ {:x}, slot {}", vtbl.address(), slot);
+    }
+}
+
+uint32_t Hooks::AssetReadHook::archiveThunk(void* a_this, void* a_buf, uint64_t a_count, uint64_t* a_br) {
+    const auto start = std::chrono::high_resolution_clock::now();
+    const uint32_t status = originalArchive(a_this, a_buf, a_count, a_br);
+    const auto end = std::chrono::high_resolution_clock::now();
+    const uint64_t bytes = (a_br && status == 0) ? *a_br : 0;
+    AssetReadProfiling::Record(AssetReadProfiling::Source::Archive, bytes,
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()));
+    return status;
+}
+
+uint32_t Hooks::AssetReadHook::looseThunk(void* a_this, void* a_buf, uint64_t a_count, uint64_t* a_br) {
+    const auto start = std::chrono::high_resolution_clock::now();
+    const uint32_t status = originalLoose(a_this, a_buf, a_count, a_br);
+    const auto end = std::chrono::high_resolution_clock::now();
+    const uint64_t bytes = (a_br && status == 0) ? *a_br : 0;
+    AssetReadProfiling::Record(AssetReadProfiling::Source::Loose, bytes,
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()));
+    return status;
+}
 
 void Hooks::TESLoad::Install(SKSE::Trampoline& a_trampoline) {
     // VR: ConstructObjectList is called from CompileFiles (ID 13645) at +0x2c3.

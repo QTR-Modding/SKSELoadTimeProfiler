@@ -1,5 +1,6 @@
 #include "LoadProfiling.h"
 
+#include "AssetReadProfiling.h"
 #include "ChangeFormProfiling.h"
 #include "REX/REX/Singleton.h"
 
@@ -94,6 +95,18 @@ namespace {
                 }
             }
         }
+
+        // BSA vs raw (loose-file) asset reads observed across the load window.
+        const auto bsa = AssetReadProfiling::SnapshotArchive();
+        const auto loose = AssetReadProfiling::SnapshotLoose();
+        if (bsa.calls || loose.calls) {
+            logger::info(
+                "[LoadProfiler]   asset reads: BSA={} calls, {:.1f}MB, {:.1f}ms  |  loose={} calls, {:.1f}MB, {:.1f}ms",
+                bsa.calls, static_cast<double>(bsa.bytes) / (1024.0 * 1024.0),
+                static_cast<double>(bsa.totalNs) / 1'000'000.0,
+                loose.calls, static_cast<double>(loose.bytes) / (1024.0 * 1024.0),
+                static_cast<double>(loose.totalNs) / 1'000'000.0);
+        }
         g_history.push_back(std::move(rec));
         if (g_cur.coldStart) g_seenMainMenu = false;  // we have entered the game
         g_cur = InProgress{};
@@ -179,7 +192,8 @@ void LoadProfiling::Install() {
 
 void LoadProfiling::OnPreLoadGame(const char* saveName) {
     const uint64_t now = NowNs();
-    ChangeFormProfiling::BeginLoad();  // reset per-mod attribution accumulators
+    ChangeFormProfiling::BeginLoad();    // reset per-mod attribution accumulators
+    AssetReadProfiling::BeginLoad();     // reset BSA/loose accumulators
     std::lock_guard lk(g_mutex);
     if (g_cur.active) FinalizeLocked(0);  // flush a prior load that never saw its menu close
     g_cur = InProgress{};
