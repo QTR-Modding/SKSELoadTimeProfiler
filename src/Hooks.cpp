@@ -130,22 +130,21 @@ void Hooks::AssetReadHook::Install() {
 }
 
 uint32_t Hooks::AssetReadHook::archiveThunk(void* a_this, void* a_buf, uint64_t a_count, uint64_t* a_br) {
-    const auto start = std::chrono::high_resolution_clock::now();
+    // Hot path (~200K calls/load): __rdtsc instead of chrono to minimize overhead.
+    const uint64_t t0 = __rdtsc();
     const uint32_t status = originalArchive(a_this, a_buf, a_count, a_br);
-    const auto end = std::chrono::high_resolution_clock::now();
+    const uint64_t cycles = __rdtsc() - t0;
     const uint64_t bytes = (a_br && status == 0) ? *a_br : 0;
-    AssetReadProfiling::Record(AssetReadProfiling::Source::Archive, bytes,
-        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()));
+    AssetReadProfiling::Record(AssetReadProfiling::Source::Archive, bytes, cycles);
     return status;
 }
 
 uint32_t Hooks::AssetReadHook::looseThunk(void* a_this, void* a_buf, uint64_t a_count, uint64_t* a_br) {
-    const auto start = std::chrono::high_resolution_clock::now();
+    const uint64_t t0 = __rdtsc();
     const uint32_t status = originalLoose(a_this, a_buf, a_count, a_br);
-    const auto end = std::chrono::high_resolution_clock::now();
+    const uint64_t cycles = __rdtsc() - t0;
     const uint64_t bytes = (a_br && status == 0) ? *a_br : 0;
-    AssetReadProfiling::Record(AssetReadProfiling::Source::Loose, bytes,
-        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()));
+    AssetReadProfiling::Record(AssetReadProfiling::Source::Loose, bytes, cycles);
     return status;
 }
 
