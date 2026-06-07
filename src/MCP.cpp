@@ -109,10 +109,8 @@ namespace {
 }
 
 namespace {
-    // Per-DLL cost during a save load, reusing data the messaging profiler already
-    // captures: the time each SKSE plugin spends in its kPreLoadGame + kPostLoadGame
-    // handlers. The main startup table filters out "...Game" messages (they recur in
-    // play), so this is the place they surface.
+    // Per-DLL save-load cost: each plugin's time in its kPreLoadGame + kPostLoadGame
+    // handlers (the startup table filters out "...Game" messages, so they surface here).
     void RenderPerDllLoadCost() {
         using MI = SKSE::MessagingInterface;
         if (!ImGuiMCP::ImGui::CollapsingHeader("Per-DLL Load-Game Cost")) return;

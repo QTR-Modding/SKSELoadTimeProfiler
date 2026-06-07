@@ -76,11 +76,8 @@ std::uintptr_t Hooks::GlobalDataHook::finishThunk(void* a1, void* a2, void* a3, 
 }
 
 void Hooks::PapyrusLoadHook::Install(SKSE::Trampoline& a_trampoline) {
-    // Wrap the CALL to the SkyrimVM load-game restore inside SkyrimVM::LoadPapyrus.
-    // The VM restore is reached by vtable dispatch (no single entry to detour with the
-    // SKSE trampoline), but LoadPapyrus calls it directly; the call site sits at +0x1d
-    // on SE/AE/VR (disasm-verified). write_call replaces that direct call so we can time
-    // the restore by bracketing the original (returned by write_call).
+    // write_call the direct call to the VM restore inside LoadPapyrus (+0x1d); the restore
+    // is vtable-dispatched so its entry can't be trampoline-detoured. See commit for RE.
     REL::Relocation<std::uintptr_t> callSite{REL::RelocationID(53207, 54018, 53207), 0x1d};
     originalFunction = a_trampoline.write_call<5>(callSite.address(), thunk);
     logger::debug("PapyrusLoadHook call site @ {:x}", callSite.address());
@@ -95,11 +92,8 @@ std::uintptr_t Hooks::PapyrusLoadHook::thunk(void* a_this, void* a2, void* a3, v
 }
 
 void Hooks::ChangeFormHook::Install(SKSE::Trampoline& a_trampoline) {
-    // Three direct CALL sites in BGSSaveLoadGame::LoadGame target the change-form
-    // header read: main change-form loop (+0x3d0 SE/AE/VR -- wait, AE 0x440),
-    // deferred-changes path, and post-error retry. Offsets differ slightly per runtime
-    // (call-site displacements, verified in Ghidra). LoadGame resolves on VR via the SE
-    // id 34677 (added to the VR address library / database.csv).
+    // write_call the 3 direct call sites to the change-form header read in LoadGame
+    // (main loop / deferred / retry); per-runtime call-site offsets verified in Ghidra.
     REL::Relocation<std::uintptr_t> loadGame{REL::RelocationID(34677, 35600)};
     const auto base = loadGame.address();
     const auto offset0 = REL::Relocate<std::uintptr_t>(0x3d0, 0x440, 0x3d0);
@@ -113,10 +107,8 @@ void Hooks::ChangeFormHook::Install(SKSE::Trampoline& a_trampoline) {
 }
 
 namespace {
-    // Record one change-form loop iteration. The header read populates *RCX
-    // (BGSLoadFormData::formID at offset 0) on return; we capture the entry timestamp
-    // and the decoded FormID, and let ChangeFormProfiling attribute the inter-iteration
-    // delta (the real lookup+apply cost) to the previous form. Hot path: keep minimal.
+    // The header read writes the FormID to *RCX (formID at +0) on return; capture entry ts
+    // + FormID and let ChangeFormProfiling bill the inter-iteration delta to the prev form.
     inline void RecordOne(void* a_data, void* a_file, Hooks::ChangeFormHook::Fn* orig) {
         const uint64_t entryNs = static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -134,9 +126,7 @@ void Hooks::ChangeFormHook::thunk1(void* a_data, void* a_file) { RecordOne(a_dat
 void Hooks::ChangeFormHook::thunk2(void* a_data, void* a_file) { RecordOne(a_data, a_file, originalFunction2.get()); }
 
 void Hooks::AssetReadHook::Install() {
-    // ArchiveStream vtable: DoRead at slot 6. SE id 285761 / AE id 236985 both index the
-    // vtable start; VR resolves via the SE id (285761, present in the VR address library)
-    // and is also slot 6 (DB vtable 0x1417ec318, DoRead 0x1417ec348).
+    // ArchiveStream::DoRead at vtable slot 6 (CompressedArchiveStream shares this vfunc).
     {
         REL::Relocation<std::uintptr_t> vtbl{REL::RelocationID(285761, 236985)};
         originalArchive = vtbl.write_vfunc(6, archiveThunk);
@@ -172,11 +162,9 @@ uint32_t Hooks::AssetReadHook::looseThunk(void* a_this, void* a_buf, uint64_t a_
 }
 
 void Hooks::TESLoad::Install(SKSE::Trampoline& a_trampoline) {
-    // VR: ConstructObjectList is called from CompileFiles (ID 13645) at +0x2c3.
-    // With SkyrimVRESL installed, VRESL also patches this call site — since VRESL loads
-    // after us (alphabetically), it will overwrite our hook, silently disabling ESP
-    // profiling when VRESL is active. No crash in either case.
-    // SE/AE: hook the call to ConstructObjectList inside LoadFileObjects/CompileFiles.
+    // Hook the ConstructObjectList call in CompileFiles. GOTCHA: SkyrimVRESL patches the
+    // same VR call site and loads after us, overwriting this hook (ESP profiling off under
+    // VRESL; no crash).
     originalFunction = a_trampoline.write_call<5>(
         REL::RelocationID(13687, 13753, 13645).address() + REL::Relocate(0x5e, 0x323, 0x2c3), thunk);
 }
@@ -193,9 +181,8 @@ int64_t Hooks::TESLoad::thunk(int64_t a1, RE::TESFile* file, char a2) {
 }
 
 void Hooks::OpenTESHook::Install(SKSE::Trampoline& a_trampoline) {
-    // VR has one OpenTES call in CompileFiles (at +0x242) vs SE's two (+0x24B, +0x2AB).
-    // On VR with SkyrimVRESL, +0x242 falls inside VRESL's NOP sled so the hook is
-    // harmlessly dead — VRESL jumps over it. Without VRESL, it fires normally.
+    // VR has one OpenTES call in CompileFiles (+0x242) vs SE's two; under VRESL +0x242 is
+    // in VRESL's NOP sled (harmlessly dead), else it fires.
     originalFunction1 = a_trampoline.write_call<5>(
         REL::RelocationID(13645, 13753).address() + REL::Relocate(0x24b, 0x23b, 0x242), thunk1);
     if (REL::Module::IsVR()) return;

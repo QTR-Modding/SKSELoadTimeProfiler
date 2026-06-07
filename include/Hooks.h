@@ -34,10 +34,8 @@ namespace Hooks {
         static inline REL::Relocation<decltype(thunk7)> originalFunction7;
     };
 
-    // Times the Papyrus/SkyrimVM load-game restore (the "Loading game..." VM state
-    // restore), called once per load inside BGSSaveLoadGame::LoadGame. Hooked at the
-    // direct CALL site inside LoadPapyrus (+0x1d, SE/AE/VR) via write_call. Args are
-    // forwarded generically (RCX/RDX/R8/R9) since the function homes R8 (>=3 args).
+    // Times the Papyrus/SkyrimVM load-game restore (once per load). write_call on the direct
+    // call site in LoadPapyrus (+0x1d); args forwarded generically (RCX/RDX/R8/R9).
     class PapyrusLoadHook {
     public:
         static void Install(SKSE::Trampoline& a_trampoline);
@@ -47,10 +45,8 @@ namespace Hooks {
         static inline REL::Relocation<decltype(thunk)> originalFunction;
     };
 
-    // Attributes each change-form's load time to its source plugin. The change-form
-    // header read (which decodes the FormID into BGSLoadFormData) has three direct
-    // call sites inside BGSSaveLoadGame::LoadGame; we wrap-time each via write_call,
-    // read the FormID from [RCX] post-return, and bucket by load-order byte.
+    // Attributes each change-form's load time to its source plugin: write_call the 3 call
+    // sites to the change-form header read in LoadGame, read the FormID from [RCX] on return.
     class ChangeFormHook {
     public:
         static void Install(SKSE::Trampoline& a_trampoline);
@@ -69,11 +65,8 @@ namespace Hooks {
         static inline REL::Relocation<Fn> originalFunction2;
     };
 
-    // Brackets the global-data load span inside BGSSaveLoadGame::LoadGame: write_call on
-    // the FIRST InitGlobalData call and the LAST FinishLoadGlobalData call. Combined with
-    // the change-form timestamps, this splits post-form into global-data vs cell/3D.
-    // Offsets verified SE/AE/VR (VR resolved via the SE<->VR Version-Tracking mapping --
-    // the calls live in LoadGame on all three; VR's were just missing from its ref DB).
+    // Brackets the global-data load span in LoadGame: write_call on the FIRST InitGlobalData
+    // and LAST FinishLoadGlobalData calls, splitting post-form into global-data vs cell/3D.
     class GlobalDataHook {
     public:
         static void Install(SKSE::Trampoline& a_trampoline);
@@ -86,15 +79,12 @@ namespace Hooks {
         static inline REL::Relocation<Fn> originalFinish;
     };
 
-    // Vtable detours on BSResource::ArchiveStream::DoRead and ::LooseFileStream::DoRead.
-    // CompressedArchiveStream shares ArchiveStream's read vfunc, so a single Archive
-    // hook covers all BSA reads (compressed and uncompressed). Tracks bytes + time per
-    // source, so users can see the BSA-vs-loose breakdown for a save load.
+    // Vtable detours on ArchiveStream::DoRead and LooseFileStream::DoRead for the BSA-vs-loose
+    // breakdown (CompressedArchiveStream shares ArchiveStream's vfunc, so one hook covers both).
     class AssetReadHook {
     public:
-        // DoRead vfunc: returns a 32-bit status enum; args via Microsoft x64 calling
-        // convention. R9 holds a uint64* that's WRITTEN with actual-bytes-read on
-        // return -- read it after invoking the original.
+        // DoRead vfunc: returns a 32-bit status; R9 is a uint64* WRITTEN with bytes-read on
+        // return -- read it after the original.
         using DoReadFn = uint32_t(void* a_this, void* a_buffer, uint64_t a_count, uint64_t* a_bytesRead);
 
         static void Install();

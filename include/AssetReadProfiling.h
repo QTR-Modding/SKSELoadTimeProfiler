@@ -2,17 +2,9 @@
 
 #include <atomic>
 
-// Hot-path asset-read accounting: tracks bytes and time read from BSA archives vs
-// raw loose files during a save load. Hooks are vtable detours on
-// BSResource::ArchiveStream::DoRead and BSResource::LooseFileStream::DoRead;
-// CompressedArchiveStream shares ArchiveStream's read vfunc so one hook covers both
-// uncompressed and compressed BSAs.
-//
-// Timing uses raw TSC cycles (__rdtsc) on the hot path rather than
-// std::chrono::high_resolution_clock (QueryPerformanceCounter): the read vfunc fires
-// ~200K times per load, so the ~25ns/call QPC cost would itself dominate the result.
-// Cycles are converted to ns at snapshot time using a TSC frequency self-calibrated
-// from the load window (no startup calibration needed).
+// BSA-vs-loose asset-read accounting during a save load (vtable detours on
+// ArchiveStream / LooseFileStream::DoRead). The read vfunc fires ~200K times/load, so the
+// hot path times with __rdtsc (far cheaper than QPC), converted to ns via a window-calibrated TSC.
 namespace AssetReadProfiling {
     struct Stats {
         uint64_t bytes{0};

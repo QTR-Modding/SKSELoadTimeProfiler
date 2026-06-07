@@ -28,10 +28,8 @@ namespace {
     std::atomic<uint64_t> g_order{0};
     bool g_seenMainMenu{false};  // at the Main Menu and not yet entered the game (cold start pending)
 
-    // The in-progress entry into the game, guarded by g_mutex. A save load fires
-    // kPreLoadGame; a new game fires kNewGame; a main-menu `coc` fires neither but is
-    // still a Main Menu -> gameplay transition. Ordinary in-game door/fast-travel cell
-    // loads happen away from the Main Menu and fire no load message, so they are dropped.
+    // In-progress Main Menu -> gameplay transition (guarded by g_mutex): save (kPreLoadGame),
+    // new game (kNewGame), or a menu `coc` (neither). In-game cell loads fire no message.
     struct InProgress {
         bool        active{false};
         bool        sawPre{false};
@@ -131,10 +129,8 @@ namespace {
                 static_cast<double>(loose.totalNs) / 1'000'000.0);
         }
 
-        // Auto-export a snapshot after every save load so the per-load CSV/TXT/JSON
-        // captures the data we just recorded (the menu-open auto-export only fires
-        // once at startup and would miss save loads). Skip for non-save kinds since
-        // those don't accumulate change-form / asset-read data.
+        // Auto-export after each save load (the startup menu-open export would miss it).
+        // Save-only: other kinds don't accumulate change-form / asset-read data.
         if (rec.kind == "Save") {
             std::string status;
             const bool csvOk = Export::WriteSnapshot(Export::Format::Csv, status);
@@ -183,9 +179,8 @@ namespace {
                 if (g_cur.active) {
                     g_cur.tMenuOpen = now;
                     g_cur.coldStart = g_cur.coldStart || cold;
-                    // A pure cold start (coc) fires no kPreLoadGame/kNewGame, so the
-                    // accumulators were never begun for this window: start them at menu
-                    // open (resets stale startup reads and sets the TSC calibration anchor).
+                    // A coc fires no kPreLoadGame/kNewGame, so begin the accumulators here
+                    // (resets stale startup reads, sets the TSC calibration anchor).
                     if (cold && !g_cur.sawPre && !g_cur.sawNew) {
                         ChangeFormProfiling::BeginLoad();
                         AssetReadProfiling::BeginLoad();

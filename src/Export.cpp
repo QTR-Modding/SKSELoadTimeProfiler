@@ -463,11 +463,8 @@ namespace {
         return totals;
     }
 
-    // ------------------------------------------------------------------------
-    // Save-load profiler export sections (LoadProfiling / ChangeFormProfiling /
-    // AssetReadProfiling). Appended at the end of each output format so the
-    // existing rows stay byte-identical when no save load has been observed.
-    // ------------------------------------------------------------------------
+    // Save-load export sections, appended after the existing rows so output stays
+    // byte-identical when no save load was observed.
 
     std::string MsCell(const double ms) {
         if (ms < 0.0) return "-";

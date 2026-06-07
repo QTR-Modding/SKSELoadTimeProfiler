@@ -13,9 +13,8 @@ namespace {
     };
     std::array<Bucket, 256> g_cur;
 
-    // Iteration-timing state (single load thread touches these). The change-form loop
-    // is: read header -> lookup -> Revert/apply -> next header. We attribute the
-    // wall-time between consecutive header reads to the PREVIOUS form (its apply cost).
+    // Iteration timing (single load thread). Loop is read header -> lookup -> apply ->
+    // next header; bill the wall-time between consecutive reads to the PREVIOUS form.
     std::atomic<uint64_t> g_lastEntryNs{0};
     std::atomic<uint8_t>  g_lastLo{0};
     std::atomic<uint64_t> g_firstEntryNs{0};  // first change-form header of the load
@@ -31,10 +30,8 @@ namespace {
     bool g_haveLoad{false};
 
     std::string ResolvePluginName(uint8_t loIdx) {
-        // Resolve a load-order index to a plugin file name. 0xFF is unused / reserved
-        // (often dynamic). 0xFE is the ESL flag -- file is in TESDataHandler::smallFiles.
-        // We only have the top byte, not the 12-bit ESL sub-index, so all 0xFE forms
-        // collapse into a single "ESL (multiple)" bucket here.
+        // Load-order byte -> plugin name. 0xFF dynamic/runtime, 0xFE = ESL; only the top
+        // byte is known (not the 12-bit ESL sub-index), so all ESLs collapse to one bucket.
         auto* dh = RE::TESDataHandler::GetSingleton();
         if (!dh) return std::string("unresolved (0x") + (loIdx < 16 ? "0" : "") + std::to_string(loIdx) + ")";
 

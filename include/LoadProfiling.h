@@ -4,12 +4,9 @@
 #include <string>
 #include <vector>
 
-// Profiles the "enter the game" pipeline, which is distinct from the initial
-// data-file load the ESP/DLL profilers measure. The core save-load span is fully
-// SKSE-native (kPreLoadGame -> kPostLoadGame) and needs no RE addresses, so it is
-// VR-safe and version-proof. LoadingMenu, MainMenu and TESLoadGameEvent are used to
-// bound the user-perceived span and to also capture New Game / coc cold starts that
-// never fire kPreLoadGame.
+// Profiles the "enter the game" pipeline (distinct from the ESP/DLL data-file load). The core
+// span is SKSE-native (kPreLoadGame -> kPostLoadGame, no RE addresses, VR-safe); LoadingMenu /
+// MainMenu / TESLoadGameEvent bound the user-perceived span and catch New Game / coc cold starts.
 namespace LoadProfiling {
     struct LoadRecord {
         std::string name;            // save file name (kPreLoadGame), else label/empty
@@ -21,9 +18,8 @@ namespace LoadProfiling {
         double preFormMs{-1.0};      // kPreLoadGame -> first change-form  (file read + LoadMods)
         double formSpanMs{-1.0};     // first -> last change-form          (change-form loops, wall-clock)
         double postFormMs{-1.0};     // last change-form -> kPostLoadGame  (global data + cell/3D load)
-        // global-data spans first InitGlobalData -> last FinishLoadGlobalData. NOTE this
-        // INCLUDES cell/reference/3D loading (cells are global-data types), so it is
-        // typically ~all of post-form -- the dominant load cost.
+        // InitGlobalData -> FinishLoadGlobalData. INCLUDES cell/reference/3D load (cells are
+        // a global-data type), so typically ~all of post-form -- the dominant cost.
         double globalDataMs{-1.0};
         double postFormOtherMs{-1.0};  // post-form outside the global-data span (small tail)
         double papyrusMs{-1.0};        // Papyrus/SkyrimVM script-state restore (within global-data)
