@@ -482,10 +482,13 @@ namespace {
         const auto loads = LoadProfiling::Snapshot();
         if (loads.empty()) return;
         out << "\n# Save Loads\n";
-        out << "name,type,deserialize_ms,papyrus_ms,menu_ms,in_control_ms,trailing_ms,result\n";
+        out << "name,type,deserialize_ms,pre_form_ms,change_forms_ms,global_data_ms,"
+               "post_form_other_ms,papyrus_ms,menu_ms,in_control_ms,trailing_ms,result\n";
         for (const auto& l : loads) {
             out << EscapeCsv(l.name) << ',' << EscapeCsv(l.kind) << ','
-                << MsCell(l.deserializeMs) << ',' << MsCell(l.papyrusMs) << ','
+                << MsCell(l.deserializeMs) << ',' << MsCell(l.preFormMs) << ','
+                << MsCell(l.formSpanMs) << ',' << MsCell(l.globalDataMs) << ','
+                << MsCell(l.postFormOtherMs) << ',' << MsCell(l.papyrusMs) << ','
                 << MsCell(l.menuVisibleMs) << ',' << MsCell(l.inControlMs) << ','
                 << MsCell(l.postToCloseMs) << ',' << (l.success ? "ok" : "FAILED") << "\n";
         }
@@ -516,11 +519,16 @@ namespace {
         if (loads.empty()) return;
         out << "\nSave Loads\n----------\n";
         for (const auto& l : loads) {
-            out << fmt::format("  {} ({}): deserialize={}ms (papyrus={}ms), menu={}ms, in-control={}ms, trailing={}ms [{}]\n",
+            out << fmt::format("  {} ({}): deserialize={}ms, menu={}ms, in-control={}ms, trailing={}ms [{}]\n",
                                l.name.empty() ? "<unknown>" : l.name, l.kind,
-                               MsCell(l.deserializeMs), MsCell(l.papyrusMs),
+                               MsCell(l.deserializeMs),
                                MsCell(l.menuVisibleMs), MsCell(l.inControlMs),
                                MsCell(l.postToCloseMs), l.success ? "ok" : "FAILED");
+            out << fmt::format("      deserialize phases: pre-form={}ms, change-forms={}ms, "
+                               "global-data={}ms (papyrus={}ms), tail={}ms\n",
+                               MsCell(l.preFormMs), MsCell(l.formSpanMs),
+                               MsCell(l.globalDataMs), MsCell(l.papyrusMs),
+                               MsCell(l.postFormOtherMs));
         }
 
         const auto cf = ChangeFormProfiling::SnapshotLast();
@@ -555,6 +563,10 @@ namespace {
                 obj.AddMember("kind",      Value(l.kind.c_str(), alloc), alloc);
                 obj.AddMember("success",   l.success, alloc);
                 obj.AddMember("deserialize_ms",  l.deserializeMs, alloc);
+                obj.AddMember("pre_form_ms",         l.preFormMs, alloc);
+                obj.AddMember("change_forms_ms",     l.formSpanMs, alloc);
+                obj.AddMember("global_data_ms",      l.globalDataMs, alloc);
+                obj.AddMember("post_form_other_ms",  l.postFormOtherMs, alloc);
                 obj.AddMember("papyrus_ms",      l.papyrusMs, alloc);
                 obj.AddMember("menu_visible_ms", l.menuVisibleMs, alloc);
                 obj.AddMember("in_control_ms",   l.inControlMs, alloc);
