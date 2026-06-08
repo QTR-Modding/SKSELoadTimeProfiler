@@ -83,6 +83,18 @@ namespace {
         return rec;
     }
 
+    // Caller holds g_mutex. Writes the current g_history snapshot to csv/txt/json.
+    void ExportSnapshotLocked() {
+        std::string status;
+        const bool csvOk = Export::WriteSnapshot(Export::Format::Csv, status);
+        const bool txtOk = Export::WriteSnapshot(Export::Format::Txt, status);
+        const bool jsonOk = Export::WriteSnapshot(Export::Format::Json, status);
+        if (csvOk && txtOk && jsonOk)
+            logger::info("[LoadProfiler] post-load snapshot exported: {}", status);
+        else
+            logger::warn("[LoadProfiler] post-load export incomplete (csv={}, txt={}, json={})", csvOk, txtOk, jsonOk);
+    }
+
     // Caller holds g_mutex.
     void FinalizeLocked(const uint64_t tMenuClose) {
         if (!g_cur.active) return;
@@ -129,23 +141,14 @@ namespace {
                 static_cast<double>(loose.totalNs) / 1'000'000.0);
         }
 
-        // Auto-export after each save load (the startup menu-open export would miss it).
-        // Save-only: other kinds don't accumulate change-form / asset-read data.
-        if (rec.kind == "Save") {
-            std::string status;
-            const bool csvOk = Export::WriteSnapshot(Export::Format::Csv, status);
-            const bool txtOk = Export::WriteSnapshot(Export::Format::Txt, status);
-            const bool jsonOk = Export::WriteSnapshot(Export::Format::Json, status);
-            if (csvOk && txtOk && jsonOk) {
-                logger::info("[LoadProfiler] post-load snapshot exported: {}", status);
-            } else {
-                logger::warn("[LoadProfiler] post-load export incomplete (csv={}, txt={}, json={})",
-                             csvOk, txtOk, jsonOk);
-            }
-        }
+        // Push + clear g_cur BEFORE exporting: Export's Snapshot() must read this finalized
+        // record (real tMenuClose), not the still-active in-progress one (tMenuClose=0, which
+        // exports menu-visible/trailing as -1). Save-only -- other kinds carry no breakdown.
+        const bool isSave = rec.kind == "Save";
         g_history.push_back(std::move(rec));
         if (g_cur.coldStart) g_seenMainMenu = false;  // we have entered the game
         g_cur = InProgress{};
+        if (isSave) ExportSnapshotLocked();
     }
 
     // Caller holds g_mutex. Begin tracking if not already, preserving an existing menu-open.
@@ -211,6 +214,7 @@ namespace {
                 rec.inControlMs = DiffMs(rec.startNs, now);
                 logger::info("[LoadProfiler] in-control (pre->TESLoadGameEvent) for '{}' = {:.1f}ms (back-filled)",
                              rec.name.empty() ? "<unknown>" : rec.name, rec.inControlMs);
+                ExportSnapshotLocked();  // re-export so the file carries in-control (-1 at finalize)
             }
             return RE::BSEventNotifyControl::kContinue;
         }
