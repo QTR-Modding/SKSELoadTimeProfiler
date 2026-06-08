@@ -740,6 +740,64 @@ namespace {
             }
         }
 
+        // --- Save Load track (tid=2): deserialize span with nested sub-phase slices, so
+        // Perfetto renders the load (the saveLoads JSON below is data-only, not a track).
+        {
+            const auto loadRecs = LoadProfiling::Snapshot();
+            std::vector<const LoadProfiling::LoadRecord*> saves;
+            for (const auto& l : loadRecs)
+                if (l.kind == "Save" && l.deserializeMs > 0.0) saves.push_back(&l);
+            if (!saves.empty()) {
+                addMeta(2, "Save Load", 0);
+                uint64_t originNs = UINT64_MAX;
+                for (const auto* l : saves)
+                    if (l->startNs) originNs = std::min(originNs, l->startNs);
+                const bool hasOrigin = originNs != UINT64_MAX;
+
+                // cat splits the phases for Perfetto: save-load (deserialize save data) vs
+                // world-load (global-data = cells/refs/3D) -- colored + filterable as sub-categories.
+                auto addLoad = [&](std::string_view name, const char* cat, double tsUs, double ms, rapidjson::Value& args) {
+                    rapidjson::Value ev(rapidjson::kObjectType);
+                    ev.AddMember("cat", rapidjson::StringRef(cat), alloc);
+                    ev.AddMember("name",
+                                 rapidjson::Value(name.data(), static_cast<rapidjson::SizeType>(name.size()), alloc),
+                                 alloc);
+                    ev.AddMember("ph", rapidjson::StringRef("X"), alloc);
+                    ev.AddMember("ts", tsUs, alloc);
+                    ev.AddMember("dur", std::max(ms * 1000.0, 0.001), alloc);
+                    ev.AddMember("pid", 0, alloc);
+                    ev.AddMember("tid", 2, alloc);
+                    ev.AddMember("args", args, alloc);
+                    events.PushBack(ev, alloc);
+                };
+
+                double seqUs = 0.0;  // fallback spacing if a record lacks a start timestamp
+                for (const auto* l : saves) {
+                    const double baseUs =
+                        (hasOrigin && l->startNs) ? static_cast<double>(l->startNs - originNs) / 1000.0 : seqUs;
+                    // Papyrus is within global-data but its offset isn't tracked; report it as an arg.
+                    rapidjson::Value pArgs(rapidjson::kObjectType);
+                    pArgs.AddMember("result", rapidjson::StringRef(l->success ? "ok" : "FAILED"), alloc);
+                    if (l->papyrusMs >= 0.0) pArgs.AddMember("papyrus_ms", l->papyrusMs, alloc);
+                    addLoad("deserialize: " + (l->name.empty() ? std::string("<unknown>") : l->name), "load",
+                            baseUs, l->deserializeMs, pArgs);
+
+                    double cur = baseUs;
+                    rapidjson::Value a1(rapidjson::kObjectType);
+                    if (l->preFormMs >= 0.0) { addLoad("pre-form (read+mods)", "save-load", cur, l->preFormMs, a1); cur += l->preFormMs * 1000.0; }
+                    rapidjson::Value a2(rapidjson::kObjectType);
+                    if (l->formSpanMs >= 0.0) { addLoad("change-forms", "save-load", cur, l->formSpanMs, a2); cur += l->formSpanMs * 1000.0; }
+                    rapidjson::Value a3(rapidjson::kObjectType);
+                    if (l->papyrusMs >= 0.0) a3.AddMember("papyrus_ms", l->papyrusMs, alloc);
+                    if (l->globalDataMs >= 0.0) { addLoad("global-data (cells/refs/3D)", "world-load", cur, l->globalDataMs, a3); cur += l->globalDataMs * 1000.0; }
+                    rapidjson::Value a4(rapidjson::kObjectType);
+                    if (l->postFormOtherMs > 0.5) addLoad("tail", "world-load", cur, l->postFormOtherMs, a4);
+
+                    seqUs = baseUs + l->deserializeMs * 1000.0 + 1000.0;
+                }
+            }
+        }
+
         doc.AddMember("traceEvents", events, alloc);
         doc.AddMember("displayTimeUnit", rapidjson::StringRef("ms"), alloc);
 
