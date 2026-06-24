@@ -59,19 +59,21 @@ namespace {
                    "In-control = kPreLoadGame -> TESLoadGameEvent (fully loaded).\n"
                    "Trailing = kPostLoadGame -> Loading Menu close (world streaming after deserialize).");
 
+        // No ScrollX: stretch all columns to fit so none scroll off-screen. Units are ms
+        // (see the help tooltip); headers stay short to keep 11 columns readable.
         if (ImGuiMCP::ImGui::BeginTable("##loadtimes", 11,
                                         ImGuiMCP::ImGuiTableFlags_RowBg | ImGuiMCP::ImGuiTableFlags_Borders |
-                                        ImGuiMCP::ImGuiTableFlags_Resizable | ImGuiMCP::ImGuiTableFlags_ScrollX)) {
-            ImGuiMCP::ImGui::TableSetupColumn("Name");
+                                        ImGuiMCP::ImGuiTableFlags_Resizable)) {
+            ImGuiMCP::ImGui::TableSetupColumn("Name", ImGuiMCP::ImGuiTableColumnFlags_WidthStretch);
             ImGuiMCP::ImGui::TableSetupColumn("Type");
-            ImGuiMCP::ImGui::TableSetupColumn("Deserialize (ms)");
-            ImGuiMCP::ImGui::TableSetupColumn("Pre-form (ms)");
-            ImGuiMCP::ImGui::TableSetupColumn("Change-forms (ms)");
-            ImGuiMCP::ImGui::TableSetupColumn("Global-data (ms)");
-            ImGuiMCP::ImGui::TableSetupColumn("Papyrus (ms)");
-            ImGuiMCP::ImGui::TableSetupColumn("Menu (ms)");
-            ImGuiMCP::ImGui::TableSetupColumn("In-control (ms)");
-            ImGuiMCP::ImGui::TableSetupColumn("Trailing (ms)");
+            ImGuiMCP::ImGui::TableSetupColumn("Deser");
+            ImGuiMCP::ImGui::TableSetupColumn("Pre-form");
+            ImGuiMCP::ImGui::TableSetupColumn("Change-forms");
+            ImGuiMCP::ImGui::TableSetupColumn("Global-data");
+            ImGuiMCP::ImGui::TableSetupColumn("Papyrus");
+            ImGuiMCP::ImGui::TableSetupColumn("Menu");
+            ImGuiMCP::ImGui::TableSetupColumn("In-control");
+            ImGuiMCP::ImGui::TableSetupColumn("Trailing");
             ImGuiMCP::ImGui::TableSetupColumn("Result");
             ImGuiMCP::ImGui::TableHeadersRow();
 
@@ -142,9 +144,12 @@ namespace {
             return;
         }
 
+        // Explicit outer_size so the ScrollY region has a real height (a stacked table
+        // with outer_size=0 collapses to a couple of rows under a CollapsingHeader).
         if (ImGuiMCP::ImGui::BeginTable("##dllloadcost", 4,
                                         ImGuiMCP::ImGuiTableFlags_RowBg | ImGuiMCP::ImGuiTableFlags_Borders |
-                                        ImGuiMCP::ImGuiTableFlags_Resizable | ImGuiMCP::ImGuiTableFlags_ScrollY)) {
+                                        ImGuiMCP::ImGuiTableFlags_Resizable | ImGuiMCP::ImGuiTableFlags_ScrollY,
+                                        ImGuiMCP::ImVec2(0.0f, 200.0f))) {
             ImGuiMCP::ImGui::TableSetupColumn("DLL");
             ImGuiMCP::ImGui::TableSetupColumn("PreLoadGame (ms)");
             ImGuiMCP::ImGui::TableSetupColumn("PostLoadGame (ms)");
@@ -185,9 +190,12 @@ namespace {
             return;
         }
 
+        // Explicit outer_size so the per-mod list gets a real scroll region (a stacked
+        // ScrollY table with outer_size=0 collapses to a couple of rows here).
         if (ImGuiMCP::ImGui::BeginTable("##changeforms", 3,
                                         ImGuiMCP::ImGuiTableFlags_RowBg | ImGuiMCP::ImGuiTableFlags_Borders |
-                                        ImGuiMCP::ImGuiTableFlags_Resizable | ImGuiMCP::ImGuiTableFlags_ScrollY)) {
+                                        ImGuiMCP::ImGuiTableFlags_Resizable | ImGuiMCP::ImGuiTableFlags_ScrollY,
+                                        ImGuiMCP::ImVec2(0.0f, 240.0f))) {
             ImGuiMCP::ImGui::TableSetupColumn("Plugin");
             ImGuiMCP::ImGui::TableSetupColumn("Forms");
             ImGuiMCP::ImGui::TableSetupColumn("Total (ms)");
