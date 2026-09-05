@@ -114,50 +114,50 @@ namespace {
         float labelWidth = 0.0f;
         for (const char* label : labels) {
             ImGuiMCP::ImVec2 size{};
-            ImGuiMCP::ImGui::CalcTextSize(&size, label, nullptr, false, 0.0f);
+            size = ImGuiMCP::CalcTextSize(label, nullptr, false, 0.0f);
             labelWidth = std::max(labelWidth, size.x);
         }
 
-        const auto style = ImGuiMCP::ImGui::GetStyle();
+        const auto style = ImGuiMCP::GetStyle();
         return labelWidth + (style ? style->ItemSpacing.x : 0.0f);
     }
 
     void RenderSummaryCurrentLoadingValue(const std::string& name, const double elapsedMs, const bool showSeconds) {
         if (name.empty()) {
-            ImGuiMCP::ImGui::TextUnformatted(Localization::PlaceholderEmpty.c_str());
+            ImGuiMCP::TextUnformatted(Localization::PlaceholderEmpty.c_str());
             return;
         }
 
         if (elapsedMs < 0.0) {
-            ImGuiMCP::ImGui::TextUnformatted(name.c_str());
+            ImGuiMCP::TextUnformatted(name.c_str());
             return;
         }
 
         if (showSeconds) {
             if (elapsedMs >= 1000.0)
-                ImGuiMCP::ImGui::Text("%s (%.0f s)", name.c_str(), elapsedMs * 0.001);
+                ImGuiMCP::Text("%s (%.0f s)", name.c_str(), elapsedMs * 0.001);
             else
-                ImGuiMCP::ImGui::TextUnformatted(name.c_str());
+                ImGuiMCP::TextUnformatted(name.c_str());
         } else {
             if (elapsedMs >= 1.0)
-                ImGuiMCP::ImGui::Text("%s (%.0f ms)", name.c_str(), elapsedMs);
+                ImGuiMCP::Text("%s (%.0f ms)", name.c_str(), elapsedMs);
             else
-                ImGuiMCP::ImGui::TextUnformatted(name.c_str());
+                ImGuiMCP::TextUnformatted(name.c_str());
         }
     }
 
     void RenderSummaryCurrentLoadingRow(const char* label, const std::string& name, const double elapsedMs,
                                         const bool showSeconds) {
-        ImGuiMCP::ImGui::TableNextRow();
-        ImGuiMCP::ImGui::TableSetColumnIndex(0);
-        ImGuiMCP::ImGui::TextUnformatted(label);
-        ImGuiMCP::ImGui::TableSetColumnIndex(1);
+        ImGuiMCP::TableNextRow();
+        ImGuiMCP::TableSetColumnIndex(0);
+        ImGuiMCP::TextUnformatted(label);
+        ImGuiMCP::TableSetColumnIndex(1);
         RenderSummaryCurrentLoadingValue(name, elapsedMs, showSeconds);
     }
 
     void RenderSummaryActions(MessagingProfilerUI::State& s) {
         const auto exportButtonLabel = Localization::MakeLabel(Localization::ExportButton, "export-button");
-        if (ImGuiMCP::ImGui::Button(exportButtonLabel.c_str())) {
+        if (ImGuiMCP::Button(exportButtonLabel.c_str())) {
             auto format = Export::Format::Csv;
             if (s.exportFormat == static_cast<int>(Export::Format::Txt)) {
                 format = Export::Format::Txt;
@@ -167,37 +167,37 @@ namespace {
             Export::WriteSnapshot(format, s.exportStatus);
         }
 
-        ImGuiMCP::ImGui::SameLine();
-        ImGuiMCP::ImGui::SetNextItemWidth(120.0f);
+        ImGuiMCP::SameLine();
+        ImGuiMCP::SetNextItemWidth(120.0f);
         const auto exportFormatLabel = Localization::MakeLabel("", "export-format");
         const char* formats[] = {Localization::ExportFormatCsv.c_str(), Localization::ExportFormatTxt.c_str(),
                                  Localization::ExportFormatJson.c_str()};
-        ImGuiMCP::ImGui::Combo(exportFormatLabel.c_str(), &s.exportFormat, formats, 3);
+        ImGuiMCP::Combo(exportFormatLabel.c_str(), &s.exportFormat, formats, 3);
 
         if (!s.exportStatus.empty()) {
-            ImGuiMCP::ImGui::SameLine();
-            ImGuiMCP::ImGui::TextUnformatted(s.exportStatus.c_str());
+            ImGuiMCP::SameLine();
+            ImGuiMCP::TextUnformatted(s.exportStatus.c_str());
         }
     }
 
     void RenderResultsToolbar(MessagingProfilerUI::State& s, bool& showDllEntries, bool& showEspEntries) {
-        ImGuiMCP::ImGui::SetNextItemWidth(260.0f);
+        ImGuiMCP::SetNextItemWidth(260.0f);
         const auto searchLabel = Localization::MakeLabel(Localization::SearchLabel, "search");
-        ImGuiMCP::ImGui::InputTextWithHint(searchLabel.c_str(), Localization::SearchHint.c_str(), s.search.data(),
+        ImGuiMCP::InputTextWithHint(searchLabel.c_str(), Localization::SearchHint.c_str(), s.search.data(),
                                            s.search.size());
-        ImGuiMCP::ImGui::SameLine();
+        ImGuiMCP::SameLine();
 
         bool dll = showDllEntries;
         const auto dllLabel = Localization::MakeLabel(Localization::TypeDll, "filter-dll");
-        if (ImGuiMCP::ImGui::Checkbox(dllLabel.c_str(), &dll)) {
+        if (ImGuiMCP::Checkbox(dllLabel.c_str(), &dll)) {
             showDllEntries = dll;
             Settings::Save();
         }
 
-        ImGuiMCP::ImGui::SameLine();
+        ImGuiMCP::SameLine();
         bool esp = showEspEntries;
         const auto espLabel = Localization::MakeLabel(Localization::TypeEsp, "filter-esp");
-        if (ImGuiMCP::ImGui::Checkbox(espLabel.c_str(), &esp)) {
+        if (ImGuiMCP::Checkbox(espLabel.c_str(), &esp)) {
             showEspEntries = esp;
             Settings::Save();
         }
@@ -205,7 +205,7 @@ namespace {
 
     void RenderSummary(const MessagingProfilerUI::State& s,
                        const std::vector<MessagingProfiler::TaggedRow>& taggedRows) {
-        ImGuiMCP::ImGui::TextUnformatted(Localization::Summary.c_str());
+        ImGuiMCP::TextUnformatted(Localization::Summary.c_str());
         double totalEspMs = 0.0;
         double totalDllMs = 0.0;
         for (const auto& row : taggedRows) {
@@ -222,46 +222,46 @@ namespace {
         const double totalAllMs = totalDllMs + totalEspMs;
         const double displayScale = s.showSeconds ? 0.001 : 1.0;
         const char* displayFmt = s.showSeconds ? "%.2f" : "%.0f";
-        if (ImGuiMCP::ImGui::BeginTable("##prof-summary", 2,
+        if (ImGuiMCP::BeginTable("##prof-summary", 2,
                                         ImGuiMCP::ImGuiTableFlags_SizingStretchProp |
                                         ImGuiMCP::ImGuiTableFlags_BordersInnerV)) {
-            ImGuiMCP::ImGui::TableSetupColumn("##summary-labels",
+            ImGuiMCP::TableSetupColumn("##summary-labels",
                                               ImGuiMCP::ImGuiTableColumnFlags_WidthFixed, ComputeSummaryLabelWidth());
-            ImGuiMCP::ImGui::TableSetupColumn("##summary-values",
+            ImGuiMCP::TableSetupColumn("##summary-values",
                                               ImGuiMCP::ImGuiTableColumnFlags_WidthStretch);
-            ImGuiMCP::ImGui::TableNextRow();
-            ImGuiMCP::ImGui::TableSetColumnIndex(0);
-            ImGuiMCP::ImGui::TextUnformatted(Localization::SkseInitTimeHeuristic.c_str());
-            ImGuiMCP::ImGui::TableSetColumnIndex(1);
+            ImGuiMCP::TableNextRow();
+            ImGuiMCP::TableSetColumnIndex(0);
+            ImGuiMCP::TextUnformatted(Localization::SkseInitTimeHeuristic.c_str());
+            ImGuiMCP::TableSetColumnIndex(1);
             if (loadMs >= 0.0) {
                 if (s.showSeconds) {
                     const auto text = FormatLocalized(Localization::FormatSeconds, loadMs * 0.001);
-                    ImGuiMCP::ImGui::TextUnformatted(text.c_str());
+                    ImGuiMCP::TextUnformatted(text.c_str());
                 } else {
                     const auto text = FormatLocalized(Localization::FormatMilliseconds, loadMs);
-                    ImGuiMCP::ImGui::TextUnformatted(text.c_str());
+                    ImGuiMCP::TextUnformatted(text.c_str());
                 }
             } else {
-                ImGuiMCP::ImGui::TextUnformatted(Localization::PlaceholderEmpty.c_str());
+                ImGuiMCP::TextUnformatted(Localization::PlaceholderEmpty.c_str());
             }
 
-            ImGuiMCP::ImGui::TableNextRow();
-            ImGuiMCP::ImGui::TableSetColumnIndex(0);
-            ImGuiMCP::ImGui::TextUnformatted(Localization::TotalDllTime.c_str());
-            ImGuiMCP::ImGui::TableSetColumnIndex(1);
-            ImGuiMCP::ImGui::Text(displayFmt, totalDllMs * displayScale);
+            ImGuiMCP::TableNextRow();
+            ImGuiMCP::TableSetColumnIndex(0);
+            ImGuiMCP::TextUnformatted(Localization::TotalDllTime.c_str());
+            ImGuiMCP::TableSetColumnIndex(1);
+            ImGuiMCP::Text(displayFmt, totalDllMs * displayScale);
 
-            ImGuiMCP::ImGui::TableNextRow();
-            ImGuiMCP::ImGui::TableSetColumnIndex(0);
-            ImGuiMCP::ImGui::TextUnformatted(Localization::TotalEspTime.c_str());
-            ImGuiMCP::ImGui::TableSetColumnIndex(1);
-            ImGuiMCP::ImGui::Text(displayFmt, totalEspMs * displayScale);
+            ImGuiMCP::TableNextRow();
+            ImGuiMCP::TableSetColumnIndex(0);
+            ImGuiMCP::TextUnformatted(Localization::TotalEspTime.c_str());
+            ImGuiMCP::TableSetColumnIndex(1);
+            ImGuiMCP::Text(displayFmt, totalEspMs * displayScale);
 
-            ImGuiMCP::ImGui::TableNextRow();
-            ImGuiMCP::ImGui::TableSetColumnIndex(0);
-            ImGuiMCP::ImGui::TextUnformatted(Localization::TotalTime.c_str());
-            ImGuiMCP::ImGui::TableSetColumnIndex(1);
-            ImGuiMCP::ImGui::Text(displayFmt, totalAllMs * displayScale);
+            ImGuiMCP::TableNextRow();
+            ImGuiMCP::TableSetColumnIndex(0);
+            ImGuiMCP::TextUnformatted(Localization::TotalTime.c_str());
+            ImGuiMCP::TableSetColumnIndex(1);
+            ImGuiMCP::Text(displayFmt, totalAllMs * displayScale);
 
             const auto currentDll = MessagingProfiler::GetCurrentCallbackModule();
             const double currentDllMs = MessagingProfiler::GetCurrentCallbackElapsedMs();
@@ -271,93 +271,93 @@ namespace {
                                            s.showSeconds);
             RenderSummaryCurrentLoadingRow(Localization::CurrentlyLoadingEsp.c_str(), currentEsp, currentEspMs,
                                            s.showSeconds);
-            ImGuiMCP::ImGui::EndTable();
+            ImGuiMCP::EndTable();
         }
     }
 
     void RenderMessageTypeSelector(MessagingProfilerUI::State& s, const std::vector<std::string_view>& names) {
-        ImGuiMCP::ImGui::AlignTextToFramePadding();
-        ImGuiMCP::ImGui::TextUnformatted(Localization::Selection.c_str());
-        ImGuiMCP::ImGui::SameLine();
+        ImGuiMCP::AlignTextToFramePadding();
+        ImGuiMCP::TextUnformatted(Localization::Selection.c_str());
+        ImGuiMCP::SameLine();
         const auto allLabel = Localization::MakeLabel(Localization::ButtonAll, "all");
-        if (ImGuiMCP::ImGui::Button(allLabel.c_str())) {
+        if (ImGuiMCP::Button(allLabel.c_str())) {
             std::ranges::fill(s.selected, true);
             Settings::Save();
         }
-        ImGuiMCP::ImGui::SameLine();
+        ImGuiMCP::SameLine();
         const auto noneLabel = Localization::MakeLabel(Localization::ButtonNone, "none");
-        if (ImGuiMCP::ImGui::Button(noneLabel.c_str())) {
+        if (ImGuiMCP::Button(noneLabel.c_str())) {
             std::ranges::fill(s.selected, false);
             Settings::Save();
         }
 
-        ImGuiMCP::ImGui::Spacing();
+        ImGuiMCP::Spacing();
         ImGuiMCP::ImVec2 avail{};
-        ImGuiMCP::ImGui::GetContentRegionAvail(&avail);
+        avail = ImGuiMCP::GetContentRegionAvail();
         const int columns = (avail.x > 520.0f) ? 4 : 3;
-        if (ImGuiMCP::ImGui::BeginTable("##msgtypes-grid", columns,
+        if (ImGuiMCP::BeginTable("##msgtypes-grid", columns,
                                         ImGuiMCP::ImGuiTableFlags_SizingStretchSame)) {
             for (std::size_t i = 0; i < names.size(); ++i) {
-                ImGuiMCP::ImGui::TableNextColumn();
-                ImGuiMCP::ImGui::PushID(static_cast<int>(i));
+                ImGuiMCP::TableNextColumn();
+                ImGuiMCP::PushID(static_cast<int>(i));
                 bool sel = s.selected[i];
                 const auto& label = Localization::MessageTypeLabel(i);
-                if (ImGuiMCP::ImGui::Checkbox(label.c_str(), &sel)) {
+                if (ImGuiMCP::Checkbox(label.c_str(), &sel)) {
                     s.selected[i] = sel;
                     Settings::Save();
                 }
                 const auto tooltip = GetMessageTypeTooltip(i);
-                if (!tooltip.empty() && ImGuiMCP::ImGui::IsItemHovered()) {
-                    ImGuiMCP::ImGui::BeginTooltip();
-                    ImGuiMCP::ImGui::TextUnformatted(tooltip.data(), tooltip.data() + tooltip.size());
-                    ImGuiMCP::ImGui::EndTooltip();
+                if (!tooltip.empty() && ImGuiMCP::IsItemHovered()) {
+                    ImGuiMCP::BeginTooltip();
+                    ImGuiMCP::TextUnformatted(tooltip.data(), tooltip.data() + tooltip.size());
+                    ImGuiMCP::EndTooltip();
                 }
-                ImGuiMCP::ImGui::PopID();
+                ImGuiMCP::PopID();
             }
-            ImGuiMCP::ImGui::EndTable();
+            ImGuiMCP::EndTable();
         }
     }
 
     void RenderControls(MessagingProfilerUI::State& s, const std::vector<std::string_view>& names, double& warnMs,
                         double& critMs) {
         const auto displayLabel = Localization::MakeLabel(Localization::HeaderDisplay, "display");
-        if (ImGuiMCP::ImGui::CollapsingHeader(displayLabel.c_str())) {
+        if (ImGuiMCP::CollapsingHeader(displayLabel.c_str())) {
             const auto saveLabel = Localization::MakeLabel(Localization::ButtonSaveSettings, "save-settings");
-            const bool saveRequested = ImGuiMCP::ImGui::Button(saveLabel.c_str());
+            const bool saveRequested = ImGuiMCP::Button(saveLabel.c_str());
             const auto secondsLabel = Localization::MakeLabel(Localization::CheckShowInSeconds, "show-seconds");
-            ImGuiMCP::ImGui::Checkbox(secondsLabel.c_str(), &s.showSeconds);
-            ImGuiMCP::ImGui::SameLine();
+            ImGuiMCP::Checkbox(secondsLabel.c_str(), &s.showSeconds);
+            ImGuiMCP::SameLine();
             HelpMarker(Localization::HelpMarkerLabel.c_str(), Localization::HelpMarkerSeconds.c_str());
-            ImGuiMCP::ImGui::Spacing();
+            ImGuiMCP::Spacing();
 
             bool thresholdsDirty = false;
-            ImGuiMCP::ImGui::TextUnformatted(Localization::Thresholds.c_str());
-            ImGuiMCP::ImGui::SameLine();
+            ImGuiMCP::TextUnformatted(Localization::Thresholds.c_str());
+            ImGuiMCP::SameLine();
             HelpMarker(Localization::HelpMarkerLabel.c_str(), Localization::HelpMarkerThresholds.c_str());
-            ImGuiMCP::ImGui::PushID("prof-thresholds");
-            ImGuiMCP::ImGui::SetNextItemWidth(140);
+            ImGuiMCP::PushID("prof-thresholds");
+            ImGuiMCP::SetNextItemWidth(140);
             float warn = static_cast<float>(warnMs);
             const auto warnLabel = Localization::MakeLabel(Localization::WarnMs, "warn-ms");
-            if (ImGuiMCP::ImGui::DragFloat(warnLabel.c_str(), &warn, 10.f, 0.f, 10000.f, "%.0f")) {
+            if (ImGuiMCP::DragFloat(warnLabel.c_str(), &warn, 10.f, 0.f, 10000.f, "%.0f")) {
                 warnMs = warn;
                 thresholdsDirty = true;
             }
-            ImGuiMCP::ImGui::SameLine();
-            ImGuiMCP::ImGui::SetNextItemWidth(140);
+            ImGuiMCP::SameLine();
+            ImGuiMCP::SetNextItemWidth(140);
             float crit = static_cast<float>(critMs);
             const auto critLabel = Localization::MakeLabel(Localization::CritMs, "crit-ms");
-            if (ImGuiMCP::ImGui::DragFloat(critLabel.c_str(), &crit, 10.f, 0.f, 20000.f, "%.0f")) {
+            if (ImGuiMCP::DragFloat(critLabel.c_str(), &crit, 10.f, 0.f, 20000.f, "%.0f")) {
                 critMs = crit;
                 thresholdsDirty = true;
             }
-            ImGuiMCP::ImGui::PopID();
+            ImGuiMCP::PopID();
             if (saveRequested || thresholdsDirty) Settings::Save();
 
-            ImGuiMCP::ImGui::Spacing();
+            ImGuiMCP::Spacing();
         }
 
         const auto messageTypesLabel = Localization::MakeLabel(Localization::HeaderMessageTypes, "message-types");
-        if (ImGuiMCP::ImGui::CollapsingHeader(messageTypesLabel.c_str())) {
+        if (ImGuiMCP::CollapsingHeader(messageTypesLabel.c_str())) {
             RenderMessageTypeSelector(s, names);
         }
     }
@@ -455,20 +455,20 @@ namespace {
     void RenderResultsTable(MessagingProfilerUI::State& s, const std::vector<std::string_view>& names,
                             const std::vector<MessagingProfiler::TaggedRow>& taggedRows, const double warnMs,
                             const double critMs, bool& showDllEntries, bool& showEspEntries) {
-        ImGuiMCP::ImGui::Separator();
-        ImGuiMCP::ImGui::Spacing();
+        ImGuiMCP::Separator();
+        ImGuiMCP::Spacing();
         RenderResultsToolbar(s, showDllEntries, showEspEntries);
-        ImGuiMCP::ImGui::Spacing();
+        ImGuiMCP::Spacing();
 
         ImGuiMCP::ImVec2 avail{};
-        ImGuiMCP::ImGui::GetContentRegionAvail(&avail);
+        avail = ImGuiMCP::GetContentRegionAvail();
         const float childHeight = avail.y;
 
-        ImGuiMCP::ImGui::BeginChild("##msgprof-results", ImGuiMCP::ImVec2(0.0f, childHeight), true);
+        ImGuiMCP::BeginChild("##msgprof-results", ImGuiMCP::ImVec2(0.0f, childHeight), true);
         const auto active = BuildActiveSelections(s);
         if (active.empty()) {
-            ImGuiMCP::ImGui::TextUnformatted(Localization::NoMessageTypesSelected.c_str());
-            ImGuiMCP::ImGui::EndChild();
+            ImGuiMCP::TextUnformatted(Localization::NoMessageTypesSelected.c_str());
+            ImGuiMCP::EndChild();
             return;
         }
 
@@ -477,7 +477,7 @@ namespace {
             filter = std::string_view(s.search.data(), std::strlen(s.search.data()));
         }
 
-        if (ImGuiMCP::ImGui::BeginTable("##msgprof2", static_cast<int>(active.size()) + 3,
+        if (ImGuiMCP::BeginTable("##msgprof2", static_cast<int>(active.size()) + 3,
                                         ImGuiMCP::ImGuiTableFlags_RowBg | ImGuiMCP::ImGuiTableFlags_Borders |
                                         ImGuiMCP::ImGuiTableFlags_Resizable |
                                         ImGuiMCP::ImGuiTableFlags_Reorderable |
@@ -490,20 +490,20 @@ namespace {
             const auto moduleLabel = Localization::MakeLabel(Localization::ColumnModule, "module");
             const auto typeLabel = Localization::MakeLabel(Localization::ColumnType, "type");
             const auto totalHeader = Localization::MakeLabel(totalLabel, "total");
-            ImGuiMCP::ImGui::TableSetupColumn(
+            ImGuiMCP::TableSetupColumn(
                 moduleLabel.c_str(),
                 ImGuiMCP::ImGuiTableColumnFlags_DefaultSort | ImGuiMCP::ImGuiTableColumnFlags_WidthStretch);
-            ImGuiMCP::ImGui::TableSetupColumn(typeLabel.c_str(), ImGuiMCP::ImGuiTableColumnFlags_PreferSortDescending);
-            ImGuiMCP::ImGui::TableSetupColumn(totalHeader.c_str(),
+            ImGuiMCP::TableSetupColumn(typeLabel.c_str(), ImGuiMCP::ImGuiTableColumnFlags_PreferSortDescending);
+            ImGuiMCP::TableSetupColumn(totalHeader.c_str(),
                                               ImGuiMCP::ImGuiTableColumnFlags_PreferSortDescending);
             for (const auto idx : active) {
                 const auto& visible = Localization::MessageTypeLabel(idx);
                 const auto colLabel = Localization::MakeLabel(visible, names[idx].data());
-                ImGuiMCP::ImGui::TableSetupColumn(colLabel.c_str(),
+                ImGuiMCP::TableSetupColumn(colLabel.c_str(),
                                                   ImGuiMCP::ImGuiTableColumnFlags_PreferSortDescending);
             }
-            ImGuiMCP::ImGui::TableHeadersRow();
-            if (const ImGuiMCP::ImGuiTableSortSpecs* sortSpecs = ImGuiMCP::ImGui::TableGetSortSpecs())
+            ImGuiMCP::TableHeadersRow();
+            if (const ImGuiMCP::ImGuiTableSortSpecs* sortSpecs = ImGuiMCP::TableGetSortSpecs())
                 if (sortSpecs->SpecsCount > 0) {
                     s.sortColumn = sortSpecs->Specs[0].ColumnIndex;
                     s.sortAsc = sortSpecs->Specs[0].SortDirection == ImGuiMCP::ImGuiSortDirection_Ascending;
@@ -554,87 +554,87 @@ namespace {
             const double displayScale = s.showSeconds ? 0.001 : 1.0;
             const char* displayFmt = s.showSeconds ? "%.2f" : "%.0f";
 
-            ImGuiMCP::ImGui::TableNextRow();
-            const auto totalsBg = ImGuiMCP::ImGui::GetStyleColorVec4(ImGuiMCP::ImGuiCol_TableRowBgAlt);
+            ImGuiMCP::TableNextRow();
+            const auto totalsBg = ImGuiMCP::GetStyleColorVec4(ImGuiMCP::ImGuiCol_TableRowBgAlt);
             float totalsAlpha = totalsBg ? totalsBg->w + 0.15f : 0.35f;
             totalsAlpha = std::min(totalsAlpha, 0.6f);
-            const auto totalsColor = ImGuiMCP::ImGui::GetColorU32(
+            const auto totalsColor = ImGuiMCP::GetColorU32(
                 ImGuiMCP::ImVec4(totalsBg ? totalsBg->x : 0.2f, totalsBg ? totalsBg->y : 0.2f,
                                  totalsBg ? totalsBg->z : 0.2f, totalsAlpha));
-            ImGuiMCP::ImGui::TableSetBgColor(ImGuiMCP::ImGuiTableBgTarget_RowBg0, totalsColor);
-            ImGuiMCP::ImGui::TableSetColumnIndex(0);
-            ImGuiMCP::ImGui::Text("%s (%llu)", Localization::TotalsRowLabel.c_str(),
+            ImGuiMCP::TableSetBgColor(ImGuiMCP::ImGuiTableBgTarget_RowBg0, totalsColor);
+            ImGuiMCP::TableSetColumnIndex(0);
+            ImGuiMCP::Text("%s (%llu)", Localization::TotalsRowLabel.c_str(),
                                   static_cast<unsigned long long>(renderRows.size()));
-            ImGuiMCP::ImGui::TableSetColumnIndex(1);
-            ImGuiMCP::ImGui::TextUnformatted(Localization::PlaceholderEmpty.c_str());
-            ImGuiMCP::ImGui::TableSetColumnIndex(2);
+            ImGuiMCP::TableSetColumnIndex(1);
+            ImGuiMCP::TextUnformatted(Localization::PlaceholderEmpty.c_str());
+            ImGuiMCP::TableSetColumnIndex(2);
             MessagingProfilerUI::ColorCell(grandTotal, warnMs, critMs);
-            ImGuiMCP::ImGui::Text(displayFmt, grandTotal * displayScale);
+            ImGuiMCP::Text(displayFmt, grandTotal * displayScale);
             for (std::size_t c = 0; c < active.size(); ++c) {
-                ImGuiMCP::ImGui::TableSetColumnIndex(static_cast<int>(c + 3));
+                ImGuiMCP::TableSetColumnIndex(static_cast<int>(c + 3));
                 const double v = colTotals[c];
                 MessagingProfilerUI::ColorCell(v, warnMs, critMs);
-                ImGuiMCP::ImGui::Text(displayFmt, v * displayScale);
+                ImGuiMCP::Text(displayFmt, v * displayScale);
             }
 
-            static auto clipper = ImGuiMCP::ImGui::ImGuiListClipperManager::Create();
+            static auto clipper = ImGuiMCP::ImGuiListClipperManager::Create();
             if (clipper) {
-                ImGuiMCP::ImGui::ImGuiListClipperManager::Begin(
+                ImGuiMCP::ImGuiListClipperManager::Begin(
                     clipper, static_cast<int>(renderRows.size()), 0.0f);
-                while (ImGuiMCP::ImGui::ImGuiListClipperManager::Step(clipper)) {
+                while (ImGuiMCP::ImGuiListClipperManager::Step(clipper)) {
                     for (int i = clipper->DisplayStart; i < clipper->DisplayEnd; ++i) {
                         auto& e = renderRows[static_cast<std::size_t>(i)];
-                        ImGuiMCP::ImGui::TableNextRow();
-                        ImGuiMCP::ImGui::TableSetColumnIndex(0);
-                        ImGuiMCP::ImGui::TextUnformatted(e.module.c_str());
-                        if (!e.isEsp && ImGuiMCP::ImGui::IsItemHovered()) {
+                        ImGuiMCP::TableNextRow();
+                        ImGuiMCP::TableSetColumnIndex(0);
+                        ImGuiMCP::TextUnformatted(e.module.c_str());
+                        if (!e.isEsp && ImGuiMCP::IsItemHovered()) {
                             auto it = MessagingProfilerUI::g_metaCache.find(e.module);
                             if (it == MessagingProfilerUI::g_metaCache.end())
                                 it = MessagingProfilerUI::g_metaCache.emplace(
                                     e.module, MessagingProfilerUI::GetDllMeta(e.module)).first;
-                            if (ImGuiMCP::ImGui::BeginTooltip()) {
-                                ImGuiMCP::ImGui::TextUnformatted(e.module.c_str());
+                            if (ImGuiMCP::BeginTooltip()) {
+                                ImGuiMCP::TextUnformatted(e.module.c_str());
                                 if (it->second.ok) {
                                     if (!it->second.author.empty()) {
-                                        ImGuiMCP::ImGui::Text("%s: %s", Localization::Author.c_str(),
+                                        ImGuiMCP::Text("%s: %s", Localization::Author.c_str(),
                                                               it->second.author.c_str());
                                     }
                                     if (!it->second.version.empty()) {
-                                        ImGuiMCP::ImGui::Text("%s: %s", Localization::Version.c_str(),
+                                        ImGuiMCP::Text("%s: %s", Localization::Version.c_str(),
                                                               it->second.version.c_str());
                                     }
                                     if (!it->second.license.empty()) {
-                                        ImGuiMCP::ImGui::Text("%s: %s", Localization::License.c_str(),
+                                        ImGuiMCP::Text("%s: %s", Localization::License.c_str(),
                                                               it->second.license.c_str());
                                     }
                                 } else {
-                                    ImGuiMCP::ImGui::TextUnformatted(Localization::TooltipNoVersionInfo.c_str());
+                                    ImGuiMCP::TextUnformatted(Localization::TooltipNoVersionInfo.c_str());
                                 }
-                                ImGuiMCP::ImGui::EndTooltip();
+                                ImGuiMCP::EndTooltip();
                             }
                         }
-                        ImGuiMCP::ImGui::TableSetColumnIndex(1);
-                        ImGuiMCP::ImGui::TextUnformatted(
+                        ImGuiMCP::TableSetColumnIndex(1);
+                        ImGuiMCP::TextUnformatted(
                             e.isEsp ? Localization::TypeEsp.c_str() : Localization::TypeDll.c_str());
-                        ImGuiMCP::ImGui::TableSetColumnIndex(2);
+                        ImGuiMCP::TableSetColumnIndex(2);
                         MessagingProfilerUI::ColorCell(e.total, warnMs, critMs);
-                        ImGuiMCP::ImGui::Text(displayFmt, e.total * displayScale);
+                        ImGuiMCP::Text(displayFmt, e.total * displayScale);
                         for (std::size_t c = 0; c < active.size(); ++c) {
-                            ImGuiMCP::ImGui::TableSetColumnIndex(static_cast<int>(c + 3));
+                            ImGuiMCP::TableSetColumnIndex(static_cast<int>(c + 3));
                             double v = e.vals[active[c]];
                             if (v < 1.0 || e.isEsp) v = 0.0;
                             if (!e.isEsp) MessagingProfilerUI::ColorCell(v, warnMs, critMs);
-                            ImGuiMCP::ImGui::Text(displayFmt, v * displayScale);
+                            ImGuiMCP::Text(displayFmt, v * displayScale);
                         }
                     }
                 }
-                ImGuiMCP::ImGui::ImGuiListClipperManager::End(clipper);
+                ImGuiMCP::ImGuiListClipperManager::End(clipper);
             }
-            ImGuiMCP::ImGui::EndTable();
+            ImGuiMCP::EndTable();
         }
-        ImGuiMCP::ImGui::EndChild();
+        ImGuiMCP::EndChild();
 
-        ImGuiMCP::ImGui::Spacing();
+        ImGuiMCP::Spacing();
     }
 }
 
@@ -656,7 +656,7 @@ void MessagingProfilerUI::Render(State& s, double& warnMs, double& critMs, bool&
 
     RenderSummary(s, taggedRows);
     RenderSummaryActions(s);
-    ImGuiMCP::ImGui::Spacing();
+    ImGuiMCP::Spacing();
     RenderControls(s, names, warnMs, critMs);
     RenderResultsTable(s, names, taggedRows, warnMs, critMs, showDllEntries, showEspEntries);
 }
@@ -664,8 +664,8 @@ void MessagingProfilerUI::Render(State& s, double& warnMs, double& critMs, bool&
 void MessagingProfilerUI::ColorCell(const double v, const double warnMs, const double critMs) {
     ImGuiMCP::ImU32 col = 0;
     if (v >= critMs)
-        col = ImGuiMCP::ImGui::GetColorU32(ImGuiMCP::ImVec4(0.85f, 0.15f, 0.15f, 0.35f));
+        col = ImGuiMCP::GetColorU32(ImGuiMCP::ImVec4(0.85f, 0.15f, 0.15f, 0.35f));
     else if (v >= warnMs)
-        col = ImGuiMCP::ImGui::GetColorU32(ImGuiMCP::ImVec4(0.95f, 0.75f, 0.10f, 0.25f));
-    if (col) ImGuiMCP::ImGui::TableSetBgColor(ImGuiMCP::ImGuiTableBgTarget_CellBg, col);
+        col = ImGuiMCP::GetColorU32(ImGuiMCP::ImVec4(0.95f, 0.75f, 0.10f, 0.25f));
+    if (col) ImGuiMCP::TableSetBgColor(ImGuiMCP::ImGuiTableBgTarget_CellBg, col);
 }

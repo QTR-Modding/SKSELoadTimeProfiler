@@ -11,11 +11,11 @@
 #include <vector>
 
 void HelpMarker(const char* label, const char* desc) {
-    ImGuiMCP::ImGui::TextDisabled("%s", label);
-    if (ImGuiMCP::ImGui::IsItemHovered()) {
-        ImGuiMCP::ImGui::BeginTooltip();
-        ImGuiMCP::ImGui::TextUnformatted(desc);
-        ImGuiMCP::ImGui::EndTooltip();
+    ImGuiMCP::TextDisabled("%s", label);
+    if (ImGuiMCP::IsItemHovered()) {
+        ImGuiMCP::BeginTooltip();
+        ImGuiMCP::TextUnformatted(desc);
+        ImGuiMCP::EndTooltip();
     }
 }
 
@@ -32,18 +32,18 @@ void MCP::Register() {
 namespace {
     void RenderLoadCell(const double ms) {
         if (ms < 0.0)
-            ImGuiMCP::ImGui::TextDisabled("-");
+            ImGuiMCP::TextDisabled("-");
         else
-            ImGuiMCP::ImGui::Text("%.1f", ms);
+            ImGuiMCP::Text("%.1f", ms);
     }
 
     // Renders the save-load -> in-game timings captured by LoadProfiling.
     void RenderSaveLoadTimes() {
         const auto loads = LoadProfiling::Snapshot();
-        if (!ImGuiMCP::ImGui::CollapsingHeader("Save Load Times")) return;
+        if (!ImGuiMCP::CollapsingHeader("Save Load Times")) return;
 
         if (loads.empty()) {
-            ImGuiMCP::ImGui::TextDisabled("No save loaded yet this session.");
+            ImGuiMCP::TextDisabled("No save loaded yet this session.");
             return;
         }
 
@@ -61,51 +61,51 @@ namespace {
 
         // No ScrollX: stretch all columns to fit so none scroll off-screen. Units are ms
         // (see the help tooltip); headers stay short to keep 11 columns readable.
-        if (ImGuiMCP::ImGui::BeginTable("##loadtimes", 11,
+        if (ImGuiMCP::BeginTable("##loadtimes", 11,
                                         ImGuiMCP::ImGuiTableFlags_RowBg | ImGuiMCP::ImGuiTableFlags_Borders |
                                         ImGuiMCP::ImGuiTableFlags_Resizable)) {
-            ImGuiMCP::ImGui::TableSetupColumn("Name", ImGuiMCP::ImGuiTableColumnFlags_WidthStretch);
-            ImGuiMCP::ImGui::TableSetupColumn("Type");
-            ImGuiMCP::ImGui::TableSetupColumn("Deser");
-            ImGuiMCP::ImGui::TableSetupColumn("Pre-form");
-            ImGuiMCP::ImGui::TableSetupColumn("Change-forms");
-            ImGuiMCP::ImGui::TableSetupColumn("Global-data");
-            ImGuiMCP::ImGui::TableSetupColumn("Papyrus");
-            ImGuiMCP::ImGui::TableSetupColumn("Menu");
-            ImGuiMCP::ImGui::TableSetupColumn("In-control");
-            ImGuiMCP::ImGui::TableSetupColumn("Trailing");
-            ImGuiMCP::ImGui::TableSetupColumn("Result");
-            ImGuiMCP::ImGui::TableHeadersRow();
+            ImGuiMCP::TableSetupColumn("Name", ImGuiMCP::ImGuiTableColumnFlags_WidthStretch);
+            ImGuiMCP::TableSetupColumn("Type");
+            ImGuiMCP::TableSetupColumn("Deser");
+            ImGuiMCP::TableSetupColumn("Pre-form");
+            ImGuiMCP::TableSetupColumn("Change-forms");
+            ImGuiMCP::TableSetupColumn("Global-data");
+            ImGuiMCP::TableSetupColumn("Papyrus");
+            ImGuiMCP::TableSetupColumn("Menu");
+            ImGuiMCP::TableSetupColumn("In-control");
+            ImGuiMCP::TableSetupColumn("Trailing");
+            ImGuiMCP::TableSetupColumn("Result");
+            ImGuiMCP::TableHeadersRow();
 
             for (const auto& load : loads) {
-                ImGuiMCP::ImGui::TableNextRow();
-                ImGuiMCP::ImGui::TableSetColumnIndex(0);
-                ImGuiMCP::ImGui::Text("%s", load.name.empty() ? "<unknown>" : load.name.c_str());
-                ImGuiMCP::ImGui::TableSetColumnIndex(1);
-                ImGuiMCP::ImGui::Text("%s", load.kind.c_str());
-                ImGuiMCP::ImGui::TableSetColumnIndex(2);
+                ImGuiMCP::TableNextRow();
+                ImGuiMCP::TableSetColumnIndex(0);
+                ImGuiMCP::Text("%s", load.name.empty() ? "<unknown>" : load.name.c_str());
+                ImGuiMCP::TableSetColumnIndex(1);
+                ImGuiMCP::Text("%s", load.kind.c_str());
+                ImGuiMCP::TableSetColumnIndex(2);
                 RenderLoadCell(load.deserializeMs);
-                ImGuiMCP::ImGui::TableSetColumnIndex(3);
+                ImGuiMCP::TableSetColumnIndex(3);
                 RenderLoadCell(load.preFormMs);
-                ImGuiMCP::ImGui::TableSetColumnIndex(4);
+                ImGuiMCP::TableSetColumnIndex(4);
                 RenderLoadCell(load.formSpanMs);
-                ImGuiMCP::ImGui::TableSetColumnIndex(5);
+                ImGuiMCP::TableSetColumnIndex(5);
                 RenderLoadCell(load.globalDataMs);
-                ImGuiMCP::ImGui::TableSetColumnIndex(6);
+                ImGuiMCP::TableSetColumnIndex(6);
                 RenderLoadCell(load.papyrusMs);
-                ImGuiMCP::ImGui::TableSetColumnIndex(7);
+                ImGuiMCP::TableSetColumnIndex(7);
                 RenderLoadCell(load.menuVisibleMs);
-                ImGuiMCP::ImGui::TableSetColumnIndex(8);
+                ImGuiMCP::TableSetColumnIndex(8);
                 RenderLoadCell(load.inControlMs);
-                ImGuiMCP::ImGui::TableSetColumnIndex(9);
+                ImGuiMCP::TableSetColumnIndex(9);
                 RenderLoadCell(load.postToCloseMs);
-                ImGuiMCP::ImGui::TableSetColumnIndex(10);
+                ImGuiMCP::TableSetColumnIndex(10);
                 if (load.success)
-                    ImGuiMCP::ImGui::Text("ok");
+                    ImGuiMCP::Text("ok");
                 else
-                    ImGuiMCP::ImGui::TextDisabled("FAILED");
+                    ImGuiMCP::TextDisabled("FAILED");
             }
-            ImGuiMCP::ImGui::EndTable();
+            ImGuiMCP::EndTable();
         }
     }
 }
@@ -115,7 +115,7 @@ namespace {
     // handlers (the startup table filters out "...Game" messages, so they surface here).
     void RenderPerDllLoadCost() {
         using MI = SKSE::MessagingInterface;
-        if (!ImGuiMCP::ImGui::CollapsingHeader("Per-DLL Load-Game Cost")) return;
+        if (!ImGuiMCP::CollapsingHeader("Per-DLL Load-Game Cost")) return;
 
         HelpMarker("(?)",
                    "Average time each SKSE plugin spends in its own kPreLoadGame + kPostLoadGame\n"
@@ -140,33 +140,33 @@ namespace {
         });
 
         if (rows.empty()) {
-            ImGuiMCP::ImGui::TextDisabled("No DLL load-game work recorded yet.");
+            ImGuiMCP::TextDisabled("No DLL load-game work recorded yet.");
             return;
         }
 
         // Explicit outer_size so the ScrollY region has a real height (a stacked table
         // with outer_size=0 collapses to a couple of rows under a CollapsingHeader).
-        if (ImGuiMCP::ImGui::BeginTable("##dllloadcost", 4,
+        if (ImGuiMCP::BeginTable("##dllloadcost", 4,
                                         ImGuiMCP::ImGuiTableFlags_RowBg | ImGuiMCP::ImGuiTableFlags_Borders |
                                         ImGuiMCP::ImGuiTableFlags_Resizable | ImGuiMCP::ImGuiTableFlags_ScrollY,
                                         ImGuiMCP::ImVec2(0.0f, 200.0f))) {
-            ImGuiMCP::ImGui::TableSetupColumn("DLL");
-            ImGuiMCP::ImGui::TableSetupColumn("PreLoadGame (ms)");
-            ImGuiMCP::ImGui::TableSetupColumn("PostLoadGame (ms)");
-            ImGuiMCP::ImGui::TableSetupColumn("Total (ms)");
-            ImGuiMCP::ImGui::TableHeadersRow();
+            ImGuiMCP::TableSetupColumn("DLL");
+            ImGuiMCP::TableSetupColumn("PreLoadGame (ms)");
+            ImGuiMCP::TableSetupColumn("PostLoadGame (ms)");
+            ImGuiMCP::TableSetupColumn("Total (ms)");
+            ImGuiMCP::TableHeadersRow();
             for (const auto& row : rows) {
-                ImGuiMCP::ImGui::TableNextRow();
-                ImGuiMCP::ImGui::TableSetColumnIndex(0);
-                ImGuiMCP::ImGui::Text("%s", row.module.c_str());
-                ImGuiMCP::ImGui::TableSetColumnIndex(1);
-                ImGuiMCP::ImGui::Text("%.1f", row.preMs);
-                ImGuiMCP::ImGui::TableSetColumnIndex(2);
-                ImGuiMCP::ImGui::Text("%.1f", row.postMs);
-                ImGuiMCP::ImGui::TableSetColumnIndex(3);
-                ImGuiMCP::ImGui::Text("%.1f", row.preMs + row.postMs);
+                ImGuiMCP::TableNextRow();
+                ImGuiMCP::TableSetColumnIndex(0);
+                ImGuiMCP::Text("%s", row.module.c_str());
+                ImGuiMCP::TableSetColumnIndex(1);
+                ImGuiMCP::Text("%.1f", row.preMs);
+                ImGuiMCP::TableSetColumnIndex(2);
+                ImGuiMCP::Text("%.1f", row.postMs);
+                ImGuiMCP::TableSetColumnIndex(3);
+                ImGuiMCP::Text("%.1f", row.preMs + row.postMs);
             }
-            ImGuiMCP::ImGui::EndTable();
+            ImGuiMCP::EndTable();
         }
     }
 }
@@ -175,7 +175,7 @@ namespace {
     // Per-mod change-form deserialize cost for the most recent load (ChangeFormProfiling).
     // Mirrors the "Change-forms by mod" export section.
     void RenderChangeFormsByMod() {
-        if (!ImGuiMCP::ImGui::CollapsingHeader("Change-forms by Mod (last load)")) return;
+        if (!ImGuiMCP::CollapsingHeader("Change-forms by Mod (last load)")) return;
 
         HelpMarker("(?)",
                    "Per-mod cost of the change-form apply loops in the most recent save load.\n"
@@ -186,37 +186,37 @@ namespace {
 
         const auto rows = ChangeFormProfiling::SnapshotLast();
         if (rows.empty()) {
-            ImGuiMCP::ImGui::TextDisabled("No change-form data captured yet this session.");
+            ImGuiMCP::TextDisabled("No change-form data captured yet this session.");
             return;
         }
 
         // Explicit outer_size so the per-mod list gets a real scroll region (a stacked
         // ScrollY table with outer_size=0 collapses to a couple of rows here).
-        if (ImGuiMCP::ImGui::BeginTable("##changeforms", 3,
+        if (ImGuiMCP::BeginTable("##changeforms", 3,
                                         ImGuiMCP::ImGuiTableFlags_RowBg | ImGuiMCP::ImGuiTableFlags_Borders |
                                         ImGuiMCP::ImGuiTableFlags_Resizable | ImGuiMCP::ImGuiTableFlags_ScrollY,
                                         ImGuiMCP::ImVec2(0.0f, 240.0f))) {
-            ImGuiMCP::ImGui::TableSetupColumn("Plugin");
-            ImGuiMCP::ImGui::TableSetupColumn("Forms");
-            ImGuiMCP::ImGui::TableSetupColumn("Total (ms)");
-            ImGuiMCP::ImGui::TableHeadersRow();
+            ImGuiMCP::TableSetupColumn("Plugin");
+            ImGuiMCP::TableSetupColumn("Forms");
+            ImGuiMCP::TableSetupColumn("Total (ms)");
+            ImGuiMCP::TableHeadersRow();
             for (const auto& r : rows) {
-                ImGuiMCP::ImGui::TableNextRow();
-                ImGuiMCP::ImGui::TableSetColumnIndex(0);
-                ImGuiMCP::ImGui::Text("%s", r.plugin.c_str());
-                ImGuiMCP::ImGui::TableSetColumnIndex(1);
-                ImGuiMCP::ImGui::Text("%llu", static_cast<unsigned long long>(r.count));
-                ImGuiMCP::ImGui::TableSetColumnIndex(2);
-                ImGuiMCP::ImGui::Text("%.2f", r.totalMs);
+                ImGuiMCP::TableNextRow();
+                ImGuiMCP::TableSetColumnIndex(0);
+                ImGuiMCP::Text("%s", r.plugin.c_str());
+                ImGuiMCP::TableSetColumnIndex(1);
+                ImGuiMCP::Text("%llu", static_cast<unsigned long long>(r.count));
+                ImGuiMCP::TableSetColumnIndex(2);
+                ImGuiMCP::Text("%.2f", r.totalMs);
             }
-            ImGuiMCP::ImGui::EndTable();
+            ImGuiMCP::EndTable();
         }
     }
 
     // BSA (archive) vs loose-file asset reads for the most recent load (AssetReadProfiling).
     // Mirrors the "Asset reads" export section.
     void RenderAssetReads() {
-        if (!ImGuiMCP::ImGui::CollapsingHeader("Asset Reads: BSA vs Loose (last load)")) return;
+        if (!ImGuiMCP::CollapsingHeader("Asset Reads: BSA vs Loose (last load)")) return;
 
         HelpMarker("(?)",
                    "Bytes and time read from BSA archives vs raw loose files during the last load.\n"
@@ -226,32 +226,32 @@ namespace {
         const auto bsa = AssetReadProfiling::SnapshotArchive();
         const auto loose = AssetReadProfiling::SnapshotLoose();
         if (!bsa.calls && !loose.calls) {
-            ImGuiMCP::ImGui::TextDisabled("No asset reads captured yet this session.");
+            ImGuiMCP::TextDisabled("No asset reads captured yet this session.");
             return;
         }
 
-        if (ImGuiMCP::ImGui::BeginTable("##assetreads", 4,
+        if (ImGuiMCP::BeginTable("##assetreads", 4,
                                         ImGuiMCP::ImGuiTableFlags_RowBg | ImGuiMCP::ImGuiTableFlags_Borders |
                                         ImGuiMCP::ImGuiTableFlags_Resizable)) {
-            ImGuiMCP::ImGui::TableSetupColumn("Source");
-            ImGuiMCP::ImGui::TableSetupColumn("Reads");
-            ImGuiMCP::ImGui::TableSetupColumn("MB");
-            ImGuiMCP::ImGui::TableSetupColumn("Time (ms)");
-            ImGuiMCP::ImGui::TableHeadersRow();
+            ImGuiMCP::TableSetupColumn("Source");
+            ImGuiMCP::TableSetupColumn("Reads");
+            ImGuiMCP::TableSetupColumn("MB");
+            ImGuiMCP::TableSetupColumn("Time (ms)");
+            ImGuiMCP::TableHeadersRow();
             const auto row = [](const char* label, const AssetReadProfiling::Stats& s) {
-                ImGuiMCP::ImGui::TableNextRow();
-                ImGuiMCP::ImGui::TableSetColumnIndex(0);
-                ImGuiMCP::ImGui::Text("%s", label);
-                ImGuiMCP::ImGui::TableSetColumnIndex(1);
-                ImGuiMCP::ImGui::Text("%llu", static_cast<unsigned long long>(s.calls));
-                ImGuiMCP::ImGui::TableSetColumnIndex(2);
-                ImGuiMCP::ImGui::Text("%.2f", static_cast<double>(s.bytes) / (1024.0 * 1024.0));
-                ImGuiMCP::ImGui::TableSetColumnIndex(3);
-                ImGuiMCP::ImGui::Text("%.1f", static_cast<double>(s.totalNs) / 1'000'000.0);
+                ImGuiMCP::TableNextRow();
+                ImGuiMCP::TableSetColumnIndex(0);
+                ImGuiMCP::Text("%s", label);
+                ImGuiMCP::TableSetColumnIndex(1);
+                ImGuiMCP::Text("%llu", static_cast<unsigned long long>(s.calls));
+                ImGuiMCP::TableSetColumnIndex(2);
+                ImGuiMCP::Text("%.2f", static_cast<double>(s.bytes) / (1024.0 * 1024.0));
+                ImGuiMCP::TableSetColumnIndex(3);
+                ImGuiMCP::Text("%.1f", static_cast<double>(s.totalNs) / 1'000'000.0);
             };
             row("BSA", bsa);
             row("Loose", loose);
-            ImGuiMCP::ImGui::EndTable();
+            ImGuiMCP::EndTable();
         }
     }
 }
@@ -259,7 +259,7 @@ namespace {
 void __stdcall MCP::RenderProfiler() {
     MessagingProfilerUI::State& state = MessagingProfilerUI::GetState();
     MessagingProfilerUI::Render(state, profilerWarnMs, profilerCritMs, showDllEntries, showEspEntries);
-    ImGuiMCP::ImGui::Separator();
+    ImGuiMCP::Separator();
     RenderSaveLoadTimes();
     RenderChangeFormsByMod();
     RenderAssetReads();
