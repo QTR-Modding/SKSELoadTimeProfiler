@@ -238,13 +238,13 @@ namespace {
         }
     }
 
-    // BSA (archive) vs loose-file asset reads for the most recent load (AssetReadProfiling).
+    // BSA (archive) vs loose-file asset reads (AssetReadProfiling).
     // Mirrors the "Asset reads" export section.
     void RenderAssetReads(const bool showSeconds) {
         if (!ImGuiMCP::CollapsingHeader("Asset Reads: BSA vs Loose")) return;
 
         HelpMarker("(?)",
-                   "Bytes and time read from BSA archives vs raw loose files during the last load.\n"
+                   "Bytes and time read from BSA archives vs raw loose files.\n"
                    "Loose-file reads bypass the BSA cache and are typically far slower per byte;\n"
                    "a high loose share points at un-packed mod assets as a load-time cost.");
 

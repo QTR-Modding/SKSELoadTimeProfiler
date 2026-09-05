@@ -502,7 +502,7 @@ namespace {
         const auto bsa = AssetReadProfiling::SnapshotArchive();
         const auto loose = AssetReadProfiling::SnapshotLoose();
         if (bsa.calls || loose.calls) {
-            out << "\n# Asset reads (last load)\n";
+            out << "\n# Asset reads\n";
             out << "source,calls,bytes,ms\n";
             out << "BSA," << bsa.calls << ',' << bsa.bytes << ','
                 << fmt::format("{:.1f}", static_cast<double>(bsa.totalNs) / 1'000'000.0) << "\n";
@@ -539,7 +539,7 @@ namespace {
         const auto bsa = AssetReadProfiling::SnapshotArchive();
         const auto loose = AssetReadProfiling::SnapshotLoose();
         if (bsa.calls || loose.calls) {
-            out << "\nAsset reads (last load)\n-----------------------\n";
+            out << "\nAsset reads\n-----------\n";
             out << fmt::format("  BSA:   {:>10} calls  {:>10.2f} MB  {:>8.1f} ms\n",
                                bsa.calls, static_cast<double>(bsa.bytes) / (1024.0 * 1024.0),
                                static_cast<double>(bsa.totalNs) / 1'000'000.0);
