@@ -1,5 +1,8 @@
 #include "Export.h"
+#include "AssetReadProfiling.h"
+#include "ChangeFormProfiling.h"
 #include "ESPProfiling.h"
+#include "LoadProfiling.h"
 #include "Localization.h"
 #include "MCP.h"
 #include "MessagingProfiler.h"
@@ -460,6 +463,214 @@ namespace {
         return totals;
     }
 
+    // Save-load export sections, appended after the existing rows so output stays
+    // byte-identical when no save load was observed.
+
+    std::string MsCell(const double ms) {
+        if (ms < 0.0) return "-";
+        return fmt::format("{:.1f}", ms);
+    }
+
+    bool HaveAnyLoadData() {
+        return !LoadProfiling::Snapshot().empty();
+    }
+
+    void AppendLoadCsv(std::ofstream& out) {
+        const auto loads = LoadProfiling::Snapshot();
+        if (loads.empty()) return;
+        out << "\n# Save Loads\n";
+        out << "name,type,deserialize_ms,pre_form_ms,change_forms_ms,global_data_ms,"
+               "post_form_other_ms,papyrus_ms,menu_ms,in_control_ms,trailing_ms,result\n";
+        for (const auto& l : loads) {
+            out << EscapeCsv(l.name) << ',' << EscapeCsv(l.kind) << ','
+                << MsCell(l.deserializeMs) << ',' << MsCell(l.preFormMs) << ','
+                << MsCell(l.formSpanMs) << ',' << MsCell(l.globalDataMs) << ','
+                << MsCell(l.postFormOtherMs) << ',' << MsCell(l.papyrusMs) << ','
+                << MsCell(l.menuVisibleMs) << ',' << MsCell(l.inControlMs) << ','
+                << MsCell(l.postToCloseMs) << ',' << (l.success ? "ok" : "FAILED") << "\n";
+        }
+
+        const auto cf = ChangeFormProfiling::SnapshotLast();
+        if (!cf.empty()) {
+            out << "\n# Change-forms by mod (last load)\n";
+            out << "plugin,forms,total_ms\n";
+            for (const auto& r : cf) {
+                out << EscapeCsv(r.plugin) << ',' << r.count << ',' << fmt::format("{:.2f}", r.totalMs) << "\n";
+            }
+        }
+
+        const auto bsa = AssetReadProfiling::SnapshotArchive();
+        const auto loose = AssetReadProfiling::SnapshotLoose();
+        if (bsa.calls || loose.calls) {
+            out << "\n# Asset reads\n";
+            out << "source,calls,bytes,ms\n";
+            out << "BSA," << bsa.calls << ',' << bsa.bytes << ','
+                << fmt::format("{:.1f}", static_cast<double>(bsa.totalNs) / 1'000'000.0) << "\n";
+            out << "loose," << loose.calls << ',' << loose.bytes << ','
+                << fmt::format("{:.1f}", static_cast<double>(loose.totalNs) / 1'000'000.0) << "\n";
+        }
+    }
+
+    void AppendLoadTxt(std::ofstream& out) {
+        const auto loads = LoadProfiling::Snapshot();
+        if (loads.empty()) return;
+        out << "\nSave Loads\n----------\n";
+        for (const auto& l : loads) {
+            out << fmt::format("  {} ({}): deserialize={}ms, menu={}ms, in-control={}ms, trailing={}ms [{}]\n",
+                               l.name.empty() ? "<unknown>" : l.name, l.kind,
+                               MsCell(l.deserializeMs),
+                               MsCell(l.menuVisibleMs), MsCell(l.inControlMs),
+                               MsCell(l.postToCloseMs), l.success ? "ok" : "FAILED");
+            out << fmt::format("      deserialize phases: pre-form={}ms, change-forms={}ms, "
+                               "global-data={}ms (papyrus={}ms), tail={}ms\n",
+                               MsCell(l.preFormMs), MsCell(l.formSpanMs),
+                               MsCell(l.globalDataMs), MsCell(l.papyrusMs),
+                               MsCell(l.postFormOtherMs));
+        }
+
+        const auto cf = ChangeFormProfiling::SnapshotLast();
+        if (!cf.empty()) {
+            out << "\nChange-forms by mod (last load)\n-------------------------------\n";
+            for (const auto& r : cf) {
+                out << fmt::format("  {:>5} forms  {:>8.2f}ms  {}\n", r.count, r.totalMs, r.plugin);
+            }
+        }
+
+        const auto bsa = AssetReadProfiling::SnapshotArchive();
+        const auto loose = AssetReadProfiling::SnapshotLoose();
+        if (bsa.calls || loose.calls) {
+            out << "\nAsset reads\n-----------\n";
+            out << fmt::format("  BSA:   {:>10} calls  {:>10.2f} MB  {:>8.1f} ms\n",
+                               bsa.calls, static_cast<double>(bsa.bytes) / (1024.0 * 1024.0),
+                               static_cast<double>(bsa.totalNs) / 1'000'000.0);
+            out << fmt::format("  loose: {:>10} calls  {:>10.2f} MB  {:>8.1f} ms\n",
+                               loose.calls, static_cast<double>(loose.bytes) / (1024.0 * 1024.0),
+                               static_cast<double>(loose.totalNs) / 1'000'000.0);
+        }
+    }
+
+    void AddLoadJson(rapidjson::Document& doc, rapidjson::Document::AllocatorType& alloc) {
+        using namespace rapidjson;
+        const auto loads = LoadProfiling::Snapshot();
+        if (!loads.empty()) {
+            Value arr(kArrayType);
+            for (const auto& l : loads) {
+                Value obj(kObjectType);
+                obj.AddMember("name",      Value(l.name.c_str(), alloc), alloc);
+                obj.AddMember("kind",      Value(l.kind.c_str(), alloc), alloc);
+                obj.AddMember("success",   l.success, alloc);
+                obj.AddMember("deserialize_ms",  l.deserializeMs, alloc);
+                obj.AddMember("pre_form_ms",         l.preFormMs, alloc);
+                obj.AddMember("change_forms_ms",     l.formSpanMs, alloc);
+                obj.AddMember("global_data_ms",      l.globalDataMs, alloc);
+                obj.AddMember("post_form_other_ms",  l.postFormOtherMs, alloc);
+                obj.AddMember("papyrus_ms",      l.papyrusMs, alloc);
+                obj.AddMember("menu_visible_ms", l.menuVisibleMs, alloc);
+                obj.AddMember("in_control_ms",   l.inControlMs, alloc);
+                obj.AddMember("trailing_ms",     l.postToCloseMs, alloc);
+                arr.PushBack(obj, alloc);
+            }
+            doc.AddMember("saveLoads", arr, alloc);
+        }
+
+        const auto cf = ChangeFormProfiling::SnapshotLast();
+        if (!cf.empty()) {
+            Value arr(kArrayType);
+            for (const auto& r : cf) {
+                Value obj(kObjectType);
+                obj.AddMember("plugin",   Value(r.plugin.c_str(), alloc), alloc);
+                obj.AddMember("forms",    r.count, alloc);
+                obj.AddMember("total_ms", r.totalMs, alloc);
+                arr.PushBack(obj, alloc);
+            }
+            doc.AddMember("changeFormsByMod", arr, alloc);
+        }
+
+        const auto bsa = AssetReadProfiling::SnapshotArchive();
+        const auto loose = AssetReadProfiling::SnapshotLoose();
+        if (bsa.calls || loose.calls) {
+            Value reads(kObjectType);
+            auto addSource = [&](const char* name, const AssetReadProfiling::Stats& s) {
+                Value v(kObjectType);
+                v.AddMember("calls", s.calls, alloc);
+                v.AddMember("bytes", s.bytes, alloc);
+                v.AddMember("ms", static_cast<double>(s.totalNs) / 1'000'000.0, alloc);
+                reads.AddMember(StringRef(name), v, alloc);
+            };
+            addSource("bsa", bsa);
+            addSource("loose", loose);
+            doc.AddMember("assetReads", reads, alloc);
+        }
+    }
+
+    // Appends the "Save Load" track (tid=2) to `events`: each Save load's deserialize span
+    // with nested pre-form / change-forms / global-data slices, categorized save-load vs
+    // world-load so Perfetto colors and filters the phases. (The saveLoads JSON is data-only.)
+    void AddSaveLoadTrack(rapidjson::Value& events, rapidjson::Document::AllocatorType& alloc) {
+        const auto loadRecs = LoadProfiling::Snapshot();
+        std::vector<const LoadProfiling::LoadRecord*> saves;
+        for (const auto& l : loadRecs)
+            if (l.kind == "Save" && l.deserializeMs > 0.0) saves.push_back(&l);
+        if (saves.empty()) return;
+
+        // Track meta (thread_name for tid=2); tid order places it after the ESP track.
+        rapidjson::Value tn(rapidjson::kObjectType);
+        tn.AddMember("name", rapidjson::StringRef("thread_name"), alloc);
+        tn.AddMember("ph", rapidjson::StringRef("M"), alloc);
+        tn.AddMember("pid", 0, alloc);
+        tn.AddMember("tid", 2, alloc);
+        rapidjson::Value meta(rapidjson::kObjectType);
+        meta.AddMember("name", rapidjson::StringRef("Save Load"), alloc);
+        tn.AddMember("args", meta, alloc);
+        events.PushBack(tn, alloc);
+
+        // cat splits the phases for Perfetto: save-load (deserialize save data) vs world-load
+        // (global-data = cells/refs/3D) -- colored + filterable as sub-categories.
+        auto addLoad = [&](std::string_view name, const char* cat, double tsUs, double ms, rapidjson::Value& args) {
+            rapidjson::Value ev(rapidjson::kObjectType);
+            ev.AddMember("cat", rapidjson::StringRef(cat), alloc);
+            ev.AddMember("name", rapidjson::Value(name.data(), static_cast<rapidjson::SizeType>(name.size()), alloc),
+                         alloc);
+            ev.AddMember("ph", rapidjson::StringRef("X"), alloc);
+            ev.AddMember("ts", tsUs, alloc);
+            ev.AddMember("dur", std::max(ms * 1000.0, 0.001), alloc);
+            ev.AddMember("pid", 0, alloc);
+            ev.AddMember("tid", 2, alloc);
+            ev.AddMember("args", args, alloc);
+            events.PushBack(ev, alloc);
+        };
+
+        uint64_t originNs = UINT64_MAX;
+        for (const auto* l : saves)
+            if (l->startNs) originNs = std::min(originNs, l->startNs);
+        const bool hasOrigin = originNs != UINT64_MAX;
+
+        double seqUs = 0.0;  // fallback spacing if a record lacks a start timestamp
+        for (const auto* l : saves) {
+            const double baseUs =
+                (hasOrigin && l->startNs) ? static_cast<double>(l->startNs - originNs) / 1000.0 : seqUs;
+            // Papyrus is within global-data but its offset isn't tracked; report it as an arg.
+            rapidjson::Value pArgs(rapidjson::kObjectType);
+            pArgs.AddMember("result", rapidjson::StringRef(l->success ? "ok" : "FAILED"), alloc);
+            if (l->papyrusMs >= 0.0) pArgs.AddMember("papyrus_ms", l->papyrusMs, alloc);
+            addLoad("deserialize: " + (l->name.empty() ? std::string("<unknown>") : l->name), "load", baseUs,
+                    l->deserializeMs, pArgs);
+
+            double cur = baseUs;
+            rapidjson::Value a1(rapidjson::kObjectType);
+            if (l->preFormMs >= 0.0) { addLoad("pre-form (read+mods)", "save-load", cur, l->preFormMs, a1); cur += l->preFormMs * 1000.0; }
+            rapidjson::Value a2(rapidjson::kObjectType);
+            if (l->formSpanMs >= 0.0) { addLoad("change-forms", "save-load", cur, l->formSpanMs, a2); cur += l->formSpanMs * 1000.0; }
+            rapidjson::Value a3(rapidjson::kObjectType);
+            if (l->papyrusMs >= 0.0) a3.AddMember("papyrus_ms", l->papyrusMs, alloc);
+            if (l->globalDataMs >= 0.0) { addLoad("global-data (cells/refs/3D)", "world-load", cur, l->globalDataMs, a3); cur += l->globalDataMs * 1000.0; }
+            rapidjson::Value a4(rapidjson::kObjectType);
+            if (l->postFormOtherMs > 0.5) addLoad("tail", "world-load", cur, l->postFormOtherMs, a4);
+
+            seqUs = baseUs + l->deserializeMs * 1000.0 + 1000.0;
+        }
+    }
+
     // Writes a Chrome Trace Format JSON readable by Perfetto (ui.perfetto.dev),
     // chrome://tracing, and speedscope. Each ESP plugin and DLL callback message type
     // gets its own Perfetto track (tid). ESP events use real steady_clock timestamps
@@ -597,8 +808,12 @@ namespace {
             }
         }
 
+        AddSaveLoadTrack(events, alloc);
+
         doc.AddMember("traceEvents", events, alloc);
         doc.AddMember("displayTimeUnit", rapidjson::StringRef("ms"), alloc);
+
+        AddLoadJson(doc, alloc);
 
         rapidjson::StringBuffer sb;
         rapidjson::Writer wr(sb);
@@ -684,6 +899,7 @@ namespace {
             out << "\n";
         }
 
+        AppendLoadCsv(out);
         return true;
     }
 
@@ -830,6 +1046,7 @@ namespace {
             out << "\n";
         }
 
+        AppendLoadTxt(out);
         return true;
     }
 

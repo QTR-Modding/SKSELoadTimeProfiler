@@ -2,6 +2,7 @@
 #include "Logger.h"
 #include "MCP.h"
 #include "Localization.h"
+#include "LoadProfiling.h"
 #include "MessagingProfiler.h"
 #include "Events.h"
 #include "Settings.h"
@@ -20,8 +21,21 @@ namespace {
             case SKSE::MessagingInterface::kDataLoaded:
                 logger::info("Received kDataLoaded message, installing events");
                 Events::Install();
+                LoadProfiling::Install();
                 // Pull VRESL timing data now that ConstructObjectListThunk has run.
                 VRESLIntegration::ImportIfPresent();
+                break;
+            case SKSE::MessagingInterface::kPreLoadGame:
+                // msg->data = save file name (start anchor for save-load profiling)
+                LoadProfiling::OnPreLoadGame(static_cast<const char*>(msg->data));
+                break;
+            case SKSE::MessagingInterface::kPostLoadGame:
+                // msg->data = bool success (end anchor)
+                LoadProfiling::OnPostLoadGame(msg->data != nullptr);
+                break;
+            case SKSE::MessagingInterface::kNewGame:
+                // New game cold start (no save deserialize)
+                LoadProfiling::OnNewGame();
                 break;
             default:
                 break;
