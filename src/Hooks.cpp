@@ -16,8 +16,6 @@ namespace {
         if (REL::Module::IsVR()) return {0x8f6, 0x93e};
         if (!REL::Module::IsAE()) return {0x8fe, 0x946};
 
-        // Ghidra-verified call sites. AE 1.7 moved both calls within LoadGame,
-        // while their Address Library function ID remained unchanged.
         constexpr REL::Version ae17Minimum{1, 7, 0, 0};
         if (REL::Module::get().version() >= ae17Minimum) return {0x976, 0x9be};
 
@@ -77,8 +75,6 @@ void Hooks::GlobalDataHook::Install(SKSE::Trampoline& a_trampoline) {
     const auto offsets = GetGlobalDataOffsets();
     originalInit   = a_trampoline.write_call<5>(base + offsets.firstInit, initThunk);
     originalFinish = a_trampoline.write_call<5>(base + offsets.lastFinish, finishThunk);
-    logger::info("GlobalDataHook runtime {} selected init +0x{:x}, finish +0x{:x}",
-                 REL::Module::get().version().string("."), offsets.firstInit, offsets.lastFinish);
     logger::debug("GlobalDataHook init@{:x} finish@{:x}",
                   base + offsets.firstInit, base + offsets.lastFinish);
 }
