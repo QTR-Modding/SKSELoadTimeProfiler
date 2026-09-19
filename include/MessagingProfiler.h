@@ -11,7 +11,7 @@ namespace MessagingProfiler {
     };
 
     struct MessagingExpose : SKSE::MessagingInterface {
-        const void* RawProxy() const { return GetProxy(); }
+        const void* RawProxy() const { return static_cast<const SKSE::MessagingInterface*>(this); }
     };
 
     // Dynamic trampoline pool
@@ -50,7 +50,7 @@ namespace MessagingProfiler {
     inline std::array<CallbackEntry, MAX_WRAPPERS> g_entries;
     inline std::atomic<std::size_t> g_nextIndex{0};
 
-    inline SKSE::detail::SKSEMessagingInterface* g_rawMessaging = nullptr;
+    inline SKSE::Impl::SKSEMessagingInterface* g_rawMessaging = nullptr;
     inline RawRegisterFn g_origRegister = nullptr;
     void Install();
 

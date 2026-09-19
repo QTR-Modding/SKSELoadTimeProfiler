@@ -7,6 +7,23 @@
 
 
 namespace {
+    struct GlobalDataOffsets {
+        std::uintptr_t firstInit;
+        std::uintptr_t lastFinish;
+    };
+
+    GlobalDataOffsets GetGlobalDataOffsets() {
+        if (REL::Module::IsVR()) return {0x8f6, 0x93e};
+        if (!REL::Module::IsAE()) return {0x8fe, 0x946};
+
+        // Ghidra-verified call sites. AE 1.7 moved both calls within LoadGame,
+        // while their Address Library function ID remained unchanged.
+        constexpr REL::Version ae17Minimum{1, 7, 0, 0};
+        if (REL::Module::get().version() >= ae17Minimum) return {0x976, 0x9be};
+
+        return {0x968, 0x9b0};
+    }
+
     std::string GetFilename(const RE::TESFile* file) {
         if (!file) return "<null>";
         const auto sv = file->GetFilename();
@@ -57,11 +74,13 @@ void Hooks::GlobalDataHook::Install(SKSE::Trampoline& a_trampoline) {
     // First InitGlobalData call = global-data start; last FinishLoadGlobalData = end.
     REL::Relocation<std::uintptr_t> loadGame{REL::RelocationID(34677, 35600)};
     const auto base = loadGame.address();
-    const auto firstInit  = REL::Relocate<std::uintptr_t>(0x8fe, 0x968, 0x8f6);
-    const auto lastFinish = REL::Relocate<std::uintptr_t>(0x946, 0x9b0, 0x93e);
-    originalInit   = a_trampoline.write_call<5>(base + firstInit, initThunk);
-    originalFinish = a_trampoline.write_call<5>(base + lastFinish, finishThunk);
-    logger::debug("GlobalDataHook init@{:x} finish@{:x}", base + firstInit, base + lastFinish);
+    const auto offsets = GetGlobalDataOffsets();
+    originalInit   = a_trampoline.write_call<5>(base + offsets.firstInit, initThunk);
+    originalFinish = a_trampoline.write_call<5>(base + offsets.lastFinish, finishThunk);
+    logger::info("GlobalDataHook runtime {} selected init +0x{:x}, finish +0x{:x}",
+                 REL::Module::get().version().string("."), offsets.firstInit, offsets.lastFinish);
+    logger::debug("GlobalDataHook init@{:x} finish@{:x}",
+                  base + offsets.firstInit, base + offsets.lastFinish);
 }
 
 std::uintptr_t Hooks::GlobalDataHook::initThunk(void* a1, void* a2, void* a3, void* a4) {
