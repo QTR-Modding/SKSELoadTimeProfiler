@@ -54,8 +54,8 @@ void MessagingProfiler::Install() {
         return;
     }
     const auto rawPtr = reinterpret_cast<const MessagingExpose*>(mi)->RawProxy();
-    g_rawMessaging = const_cast<SKSE::detail::SKSEMessagingInterface*>(
-        static_cast<const SKSE::detail::SKSEMessagingInterface*>(rawPtr));
+    g_rawMessaging = const_cast<SKSE::Impl::SKSEMessagingInterface*>(
+        static_cast<const SKSE::Impl::SKSEMessagingInterface*>(rawPtr));
     if (!g_rawMessaging) {
         logger::warn("[Profiler] Raw messaging proxy null");
         return;
