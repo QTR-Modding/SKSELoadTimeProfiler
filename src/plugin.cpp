@@ -57,6 +57,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse) {
     Hooks::Install();
     Localization::Load();
     Settings::Load();
+    MCP::Register();
     logger::info("Plugin loaded");
     return true;
 }
