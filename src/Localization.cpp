@@ -52,6 +52,7 @@ void Localization::Load() {
     HeaderDisplay = GetOrWarn(doc, "$ltpDisplay");
     ButtonSaveSettings = GetOrWarn(doc, "$ltpSaveSettings");
     CheckShowInSeconds = GetOrWarn(doc, "$ltpShowInSeconds");
+    StartupTableHeight = GetOrWarn(doc, "$ltpStartupTableHeight");
     HelpMarkerLabel = GetOrWarn(doc, "$ltpHelpMarkerLabel");
     HelpMarkerSeconds = GetOrWarn(doc, "$ltpHelpMarkerSeconds");
     Thresholds = GetOrWarn(doc, "$ltpThresholds");

@@ -328,6 +328,10 @@ namespace {
             ImGuiMCP::Checkbox(secondsLabel.c_str(), &s.showSeconds);
             ImGuiMCP::SameLine();
             HelpMarker(Localization::HelpMarkerLabel.c_str(), Localization::HelpMarkerSeconds.c_str());
+            const auto tableHeightLabel = Localization::MakeLabel(Localization::StartupTableHeight, "startup-table-height");
+            const bool tableHeightDirty = ImGuiMCP::SliderFloat(
+                tableHeightLabel.c_str(), &s.tableHeightPercent, MessagingProfilerUI::MinTableHeightPercent,
+                MessagingProfilerUI::MaxTableHeightPercent, "%.0f%%", ImGuiMCP::ImGuiSliderFlags_AlwaysClamp);
             ImGuiMCP::Spacing();
 
             bool thresholdsDirty = false;
@@ -351,7 +355,7 @@ namespace {
                 thresholdsDirty = true;
             }
             ImGuiMCP::PopID();
-            if (saveRequested || thresholdsDirty) Settings::Save();
+            if (saveRequested || thresholdsDirty || tableHeightDirty) Settings::Save();
 
             ImGuiMCP::Spacing();
         }
@@ -460,9 +464,9 @@ namespace {
         RenderResultsToolbar(s, showDllEntries, showEspEntries);
         ImGuiMCP::Spacing();
 
-        ImGuiMCP::ImVec2 avail{};
-        avail = ImGuiMCP::GetContentRegionAvail();
-        const float childHeight = avail.y;
+        const auto avail = ImGuiMCP::GetContentRegionAvail();
+        const float childHeight = std::max(ImGuiMCP::GetFrameHeightWithSpacing(),
+            avail.y * s.tableHeightPercent / MessagingProfilerUI::FullHeightPercent);
 
         ImGuiMCP::BeginChild("##msgprof-results", ImGuiMCP::ImVec2(0.0f, childHeight), true);
         const auto active = BuildActiveSelections(s);

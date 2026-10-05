@@ -17,6 +17,7 @@ namespace {
                 // so VRESL has definitely registered its listener by now.
                 // Dispatching at kPostLoad is too early if LTP loads before VRESL.
                 VRESLIntegration::ConnectIfPresent();
+                MCP::Register();
                 break;
             case SKSE::MessagingInterface::kDataLoaded:
                 logger::info("Received kDataLoaded message, installing events");

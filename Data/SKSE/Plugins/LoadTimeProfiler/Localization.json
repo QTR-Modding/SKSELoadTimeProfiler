@@ -15,6 +15,7 @@
   "$ltpDisplay": "Display",
   "$ltpSaveSettings": "Save Settings",
   "$ltpShowInSeconds": "Show in seconds",
+  "$ltpStartupTableHeight": "Startup table height",
   "$ltpHelpMarkerLabel": "(?)",
   "$ltpHelpMarkerSeconds": "Otherwise ms.",
   "$ltpThresholds": "Thresholds",

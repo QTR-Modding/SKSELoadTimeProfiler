@@ -1,12 +1,17 @@
 #pragma once
 
 namespace MessagingProfilerUI {
+    inline constexpr float MinTableHeightPercent = 10.0f;
+    inline constexpr float MaxTableHeightPercent = 90.0f;
+    inline constexpr float FullHeightPercent = 100.0f;
+
     struct State {
         std::vector<bool> selected;
         int sortColumn = 0;
         bool sortAsc = true;
         bool initializedFromDisk = false;
         bool showSeconds = true;
+        float tableHeightPercent = 50.0f;
         int exportFormat = 0;
         std::string exportStatus;
         std::array<char, 96> search{};
