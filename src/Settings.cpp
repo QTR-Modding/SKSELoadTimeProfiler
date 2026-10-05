@@ -33,6 +33,10 @@ void Settings::Load() {
         MCP::autoExportWithMenuFramework = doc["export"].GetBool();
     if (doc.HasMember("show_seconds") && doc["show_seconds"].IsBool())
         MessagingProfilerUI::GetState().showSeconds = doc["show_seconds"].GetBool();
+    if (doc.HasMember("table_height_percent") && doc["table_height_percent"].IsNumber())
+        MessagingProfilerUI::GetState().tableHeightPercent = std::clamp(
+            doc["table_height_percent"].GetFloat(), MessagingProfilerUI::MinTableHeightPercent,
+            MessagingProfilerUI::MaxTableHeightPercent);
     if (doc.HasMember("profiler_visible") && doc["profiler_visible"].IsArray()) {
         auto arr = doc["profiler_visible"].GetArray();
         auto names = MessagingProfiler::GetMessageTypeNames();
@@ -64,6 +68,7 @@ void Settings::Save() {
     doc.AddMember("show_esp_entries", MCP::showEspEntries, a);
     doc.AddMember("export", MCP::autoExportWithMenuFramework, a);
     doc.AddMember("show_seconds", MessagingProfilerUI::GetState().showSeconds, a);
+    doc.AddMember("table_height_percent", MessagingProfilerUI::GetState().tableHeightPercent, a);
     auto names = MessagingProfiler::GetMessageTypeNames();
     auto vis = MessagingProfilerUI::GetCurrentVisibility();
     rapidjson::Value arr(rapidjson::kArrayType);
