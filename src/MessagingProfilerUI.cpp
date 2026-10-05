@@ -328,8 +328,9 @@ namespace {
             ImGuiMCP::Checkbox(secondsLabel.c_str(), &s.showSeconds);
             ImGuiMCP::SameLine();
             HelpMarker(Localization::HelpMarkerLabel.c_str(), Localization::HelpMarkerSeconds.c_str());
+            const auto tableHeightLabel = Localization::MakeLabel(Localization::StartupTableHeight, "startup-table-height");
             const bool tableHeightDirty = ImGuiMCP::SliderFloat(
-                "Startup table height", &s.tableHeightPercent, MessagingProfilerUI::MinTableHeightPercent,
+                tableHeightLabel.c_str(), &s.tableHeightPercent, MessagingProfilerUI::MinTableHeightPercent,
                 MessagingProfilerUI::MaxTableHeightPercent, "%.0f%%", ImGuiMCP::ImGuiSliderFlags_AlwaysClamp);
             ImGuiMCP::Spacing();
 

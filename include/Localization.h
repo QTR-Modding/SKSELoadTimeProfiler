@@ -17,6 +17,7 @@ namespace Localization {
     inline std::string HeaderDisplay;
     inline std::string ButtonSaveSettings;
     inline std::string CheckShowInSeconds;
+    inline std::string StartupTableHeight;
     inline std::string HelpMarkerLabel;
     inline std::string HelpMarkerSeconds;
     inline std::string Thresholds;
