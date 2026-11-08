@@ -11,5 +11,7 @@ namespace Export {
         kTotal
     };
 
+    bool ShouldAutoExport();
+
     bool WriteSnapshot(Format format, std::string& statusMessage);
 }
