@@ -85,6 +85,10 @@ namespace {
 
     // Caller holds g_mutex. Writes the current g_history snapshot to csv/txt/json.
     void ExportSnapshotLocked() {
+        if (!Export::ShouldAutoExport()) {
+            return;
+        }
+
         std::string status;
         const bool csvOk = Export::WriteSnapshot(Export::Format::Csv, status);
         const bool txtOk = Export::WriteSnapshot(Export::Format::Txt, status);

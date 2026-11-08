@@ -8,6 +8,7 @@
 #include "MessagingProfiler.h"
 #include "MessagingProfilerUI.h"
 #include "Settings.h"
+#include "SKSEMCP/SKSEMenuFramework.hpp"
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
@@ -1061,6 +1062,10 @@ namespace {
             return path.string();
         }
     }
+}
+
+bool Export::ShouldAutoExport() {
+    return !SKSEMenuFramework::IsInstalled() || MCP::autoExportWithMenuFramework;
 }
 
 bool Export::WriteSnapshot(const Format format, std::string& statusMessage) {

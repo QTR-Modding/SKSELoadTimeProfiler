@@ -1,10 +1,8 @@
 #include "Events.h"
 #include "ESPProfiling.h"
 #include "Export.h"
-#include "MCP.h"
 #include "MessagingProfiler.h"
 #include "REX/REX/Singleton.h"
-#include "SKSEMCP/SKSEMenuFramework.hpp"
 
 class MainMenuOpenExportSink final : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
                                      public REX::Singleton<MainMenuOpenExportSink> {
@@ -24,7 +22,7 @@ RE::BSEventNotifyControl MainMenuOpenExportSink::ProcessEvent(const RE::MenuOpen
     if (uninstalled || !event || !event->opening) return RE::BSEventNotifyControl::kContinue;
     if (event->menuName != RE::MainMenu::MENU_NAME) return RE::BSEventNotifyControl::kContinue;
 
-    if (SKSEMenuFramework::IsInstalled() && !MCP::autoExportWithMenuFramework) {
+    if (!Export::ShouldAutoExport()) {
         logger::info("[Export] Main Menu auto-export skipped (SKSEMenuFramework installed and 'export' is false)");
         return UnInstall();
     }
