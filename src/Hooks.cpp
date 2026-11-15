@@ -7,19 +7,27 @@
 
 
 namespace {
-    struct GlobalDataOffsets {
-        std::uintptr_t firstInit;
-        std::uintptr_t lastFinish;
+    struct LoadGameOffsets {
+        std::array<std::uintptr_t, 3> changeForm;
+        std::uintptr_t firstGlobalInit;
+        std::uintptr_t lastGlobalFinish;
     };
 
-    GlobalDataOffsets GetGlobalDataOffsets() {
-        if (REL::Module::IsVR()) return {0x8f6, 0x93e};
-        if (!REL::Module::IsAE()) return {0x8fe, 0x946};
-
+    LoadGameOffsets GetLoadGameOffsets() {
+        constexpr REL::Version runtime640{1, 6, 640, 0};
         constexpr REL::Version ae17Minimum{1, 7, 0, 0};
-        if (REL::Module::get().version() >= ae17Minimum) return {0x976, 0x9be};
+        const auto version = REL::Module::get().version();
 
-        return {0x968, 0x9b0};
+        if (REL::Module::IsVR()) {
+            return {{0x3d0, 0x712, 0x768}, 0x8f6, 0x93e};
+        }
+        if (!REL::Module::IsAE() || version == runtime640) {
+            return {{0x3d0, 0x71a, 0x770}, 0x8fe, 0x946};
+        }
+        if (version >= ae17Minimum) {
+            return {{0x440, 0x78a, 0x7e0}, 0x976, 0x9be};
+        }
+        return {{0x440, 0x78a, 0x7e0}, 0x968, 0x9b0};
     }
 
     std::string GetFilename(const RE::TESFile* file) {
@@ -72,11 +80,11 @@ void Hooks::GlobalDataHook::Install(SKSE::Trampoline& a_trampoline) {
     // First InitGlobalData call = global-data start; last FinishLoadGlobalData = end.
     REL::Relocation<std::uintptr_t> loadGame{REL::RelocationID(34677, 35600)};
     const auto base = loadGame.address();
-    const auto offsets = GetGlobalDataOffsets();
-    originalInit   = a_trampoline.write_call<5>(base + offsets.firstInit, initThunk);
-    originalFinish = a_trampoline.write_call<5>(base + offsets.lastFinish, finishThunk);
+    const auto offsets = GetLoadGameOffsets();
+    originalInit   = a_trampoline.write_call<5>(base + offsets.firstGlobalInit, initThunk);
+    originalFinish = a_trampoline.write_call<5>(base + offsets.lastGlobalFinish, finishThunk);
     logger::debug("GlobalDataHook init@{:x} finish@{:x}",
-                  base + offsets.firstInit, base + offsets.lastFinish);
+                  base + offsets.firstGlobalInit, base + offsets.lastGlobalFinish);
 }
 
 std::uintptr_t Hooks::GlobalDataHook::initThunk(void* a1, void* a2, void* a3, void* a4) {
@@ -111,9 +119,7 @@ void Hooks::ChangeFormHook::Install(SKSE::Trampoline& a_trampoline) {
     // (main loop / deferred / retry); per-runtime call-site offsets verified in Ghidra.
     REL::Relocation<std::uintptr_t> loadGame{REL::RelocationID(34677, 35600)};
     const auto base = loadGame.address();
-    const auto offset0 = REL::Relocate<std::uintptr_t>(0x3d0, 0x440, 0x3d0);
-    const auto offset1 = REL::Relocate<std::uintptr_t>(0x71a, 0x78a, 0x712);
-    const auto offset2 = REL::Relocate<std::uintptr_t>(0x770, 0x7e0, 0x768);
+    const auto [offset0, offset1, offset2] = GetLoadGameOffsets().changeForm;
     originalFunction0 = a_trampoline.write_call<5>(base + offset0, thunk0);
     originalFunction1 = a_trampoline.write_call<5>(base + offset1, thunk1);
     originalFunction2 = a_trampoline.write_call<5>(base + offset2, thunk2);
@@ -147,13 +153,12 @@ void Hooks::AssetReadHook::Install() {
         originalArchive = vtbl.write_vfunc(6, archiveThunk);
         logger::debug("AssetReadHook archive vtable @ {:x}, slot 6", vtbl.address());
     }
-    // LooseFileStream vtable: SE id 285903 and VR (via 285903) index the vtable start,
-    // DoRead at slot 6; the AE id 332171 indexes the DoRead entry directly (slot 0).
     {
-        REL::Relocation<std::uintptr_t> vtbl{REL::RelocationID(285903, 332171)};
-        const size_t slot = REL::Module::IsAE() ? 0 : 6;
-        originalLoose = vtbl.write_vfunc(slot, looseThunk);
-        logger::debug("AssetReadHook loose vtable @ {:x}, slot {}", vtbl.address(), slot);
+        constexpr std::size_t doReadSlot = 6;
+        const auto streamVtable = REL::Module::IsAE() ? 1 : 0;
+        REL::Relocation<std::uintptr_t> vtbl{RE::BSResource::LooseFileStream::VTABLE[streamVtable]};
+        originalLoose = vtbl.write_vfunc(doReadSlot, looseThunk);
+        logger::debug("AssetReadHook loose vtable @ {:x}, slot {}", vtbl.address(), doReadSlot);
     }
 }
 
